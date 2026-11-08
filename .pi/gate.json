@@ -1,0 +1,6 @@
+{
+  "$comment": "pnpm lint && pnpm test needs no Docker stack, no network and no API keys: the AI service tests fake fastembed and run Qdrant and the ai database in-process, and LLM_PROVIDER=fake is the default in tests. Measured 30 s warm on an M1 (lint 9 s, test 21 s); the timeout is the 600 s floor, well above 1.5x.",
+  "command": "pnpm lint && pnpm test",
+  "maxRepairRounds": 2,
+  "timeoutSeconds": 600
+}

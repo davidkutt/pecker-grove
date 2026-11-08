@@ -6,8 +6,9 @@ Guide for agents working in Grove. Read this first; follow the links only when t
 
 1. **ALWAYS record learnings.** Whenever the user is frustrated with the code you produced or criticizes
    it, you MUST add a new rule to [Applied Learnings](#applied-learnings) in the same turn — one line,
-   phrased as an actionable rule, not a story. Follow every Applied Learning unless the user tells you to
-   ignore it or ignoring it is absolutely necessary for the user's task.
+   phrased as an actionable rule, not a story (in Pi: see [Working in Pi](#working-in-pi-nest)).
+   Follow every Applied Learning unless the user tells you to ignore it or ignoring it is absolutely
+   necessary for the user's task.
 2. **ALWAYS keep comments minimal.** Add a code comment only when absolutely necessary (a non-obvious
    *why*: a workaround, a constraint, a surprising choice). Never restate what the code does. Keep each
    comment as short and concise as possible.
@@ -26,7 +27,8 @@ When I correct you, or when you finish a task, decide where the lesson belongs:
   - no existing skill covers it; if one is close, update that one instead
 - **One-off** → nothing.
 
-Don't interrupt the task for a skill. At the end, create it and tell me in one line what you added.
+Don't interrupt the task for a skill. At the end, create it and tell me in one line what you added. In Pi,
+report it instead of creating it — see [Working in Pi](#working-in-pi-nest).
 
 When creating or updating a skill:
 - Path: `.claude/skills/<name>/SKILL.md` for this repo,
@@ -43,6 +45,20 @@ When creating or updating a skill:
 - Move any CLAUDE.md rules that only apply to this workflow into the skill, and delete them
   from CLAUDE.md.
 - Don't reference the skill in CLAUDE.md; the description handles discovery.
+
+## Working in Pi (nest)
+
+Applies only to agents running in Pi (`.pi/` exists, no `AGENTS.md`); Claude Code ignores this section.
+
+- You cannot push, and cannot edit `.pi/` or `~/.claude`. So for anything the rules above tell you to
+  *record* — an Applied Learning, a new or updated skill — do not edit the file: put the finished text in
+  your final message under "Learnings", and David or Claude copies it over.
+- Run tests with `LLM_PROVIDER=fake` (never paid calls). `pnpm lint && pnpm test` needs no Docker stack,
+  no network and no keys.
+- The quality gate runs `.pi/gate.json` after your code changes; `.pi/protect.json` blocks the frozen
+  datasets, local secrets and the destructive or paid commands, with the reason given on refusal.
+- Everything else in this file applies unchanged.
+
 ## What this is
 
 Grove is a RAG/agent assistant: upload domain-tagged documents, ask questions, get streamed answers with
