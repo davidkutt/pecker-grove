@@ -17,7 +17,7 @@ test('login → upload → ask → cited answer', async ({ page }) => {
   await page.getByRole('link', { name: 'Documents' }).click();
   await page.getByRole('group', { name: 'Domains' }).getByText('devops').click();
   await page
-    .getByLabel(/PDF, Markdown or text files/)
+    .getByLabel(/or drop them here/)
     .setInputFiles({ name: filename, mimeType: 'text/markdown', buffer: Buffer.from(content) });
   const row = page.getByRole('row', { name: new RegExp(filename) });
   await expect(row.getByText('ready')).toBeVisible({ timeout: 60_000 });
@@ -41,7 +41,7 @@ test('login → upload → ask → cited answer', async ({ page }) => {
 // Demo step 4 (plan-phase-2.md §1): the fake LLM proposes `kb.ingest_url` for "Add <url>". The
 // approved run fetches the file from GitHub; the test deletes it again, since dedupe would fail a rerun.
 test('agent write → reject, then approve → runs once', async ({ page }) => {
-  const url = 'https://raw.githubusercontent.com/davidkutt/FS100/main/docs/adr/template.md';
+  const url = 'https://raw.githubusercontent.com/davidkutt/pecker-grove/main/docs/adr/template.md';
 
   await login(page, 'bob');
   await page.getByRole('link', { name: 'Chat' }).click();

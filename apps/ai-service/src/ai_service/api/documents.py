@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field
 from ai_service.catalog import Taxonomy
 from ai_service.ingest import supported
 from ai_service.jobs import INGEST, cancel_ingest, defer
-from ai_service.knowledge_base import Domain, ExplainedHit, KnowledgeBase
+from ai_service.knowledge_base import Domain, ExplainedHit, KnowledgeBase, Lifecycle, Priority
+from ai_service.query import QueryTransformer, Strategy
 from ai_service.storage import Store
 
 router = APIRouter(prefix="/v1", tags=["documents"])
@@ -32,6 +33,10 @@ def get_store(request: Request) -> Store:
     return request.app.state.store
 
 
+def get_query(request: Request) -> QueryTransformer:
+    return request.app.state.query
+
+
 KB = Annotated[KnowledgeBase, Depends(get_kb)]
 Tax = Annotated[Taxonomy, Depends(get_taxonomy)]
 Jobs = Annotated[App, Depends(get_jobs)]
@@ -52,6 +57,7 @@ class SearchRequest(BaseModel):
     domains: list[Domain] | None = None
     doc_ids: list[UUID] | None = None
     explain: bool = False  # the inspector's fused, dense and sparse ranks (D56, D57)
+    strategy: Strategy = "plain"  # D58
 
 
 class SearchResponse(BaseModel):
@@ -68,6 +74,9 @@ class Submitted(BaseModel):
 class Labels(BaseModel):
     domains: list[Domain] | None = Field(None, min_length=1)
     topics: list[str] | None = None  # `domain/topic` ids from the taxonomy
+    priority: Priority | None = None  # D61
+    priority_topics: list[str] | None = None  # the priority's scope, taxonomy ids
+    lifecycle: Lifecycle | None = None  # `retired`: never returned
 
 
 @router.post("/documents", status_code=status.HTTP_202_ACCEPTED)
@@ -88,7 +97,8 @@ async def submit(
     filename = file.filename or ""
     if not supported(filename):
         raise HTTPException(
-            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Unsupported file type; expected PDF, MD or TXT"
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            "Unsupported file type; expected PDF, MD, HTML or TXT",
         )
     data = await file.read()
     if len(data) > MAX_BYTES:
@@ -111,10 +121,20 @@ async def submit(
 
 
 @router.post("/search")
-def search(kb: KB, body: SearchRequest) -> SearchResponse:
+async def search(
+    kb: KB, transformer: Annotated[QueryTransformer, Depends(get_query)], body: SearchRequest
+) -> SearchResponse:
     """Retrieval as the chat runs it, for the inspector; no threshold unless one is given."""
-    hits = kb.search(
-        body.query, body.top_k, body.score_threshold, body.domains, body.doc_ids, body.explain
+    query = await transformer.expand(body.query, body.strategy)
+    hits = await asyncio.to_thread(
+        kb.search,
+        query.text,
+        body.top_k,
+        body.score_threshold,
+        body.domains,
+        body.doc_ids,
+        body.explain,
+        query.passages,
     )
     return SearchResponse(
         embedding_model=kb.embedder.model_name,
@@ -125,9 +145,9 @@ def search(kb: KB, body: SearchRequest) -> SearchResponse:
 
 @router.patch("/documents/{doc_id}/labels", status_code=status.HTTP_204_NO_CONTENT)
 def update_labels(kb: KB, taxonomy: Tax, doc_id: UUID, body: Labels) -> None:
-    """Change `domains` / `topics` of all chunks of a document without re-embedding (D48)."""
-    _check_topics(taxonomy, body.topics)
-    kb.update_labels(doc_id, body.domains, body.topics)
+    """Change the labels of all chunks of a document without re-embedding (D48, D61)."""
+    _check_topics(taxonomy, [*(body.topics or []), *(body.priority_topics or [])])
+    kb.update_labels(doc_id, body.model_dump(exclude_none=True))
 
 
 @router.delete("/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)

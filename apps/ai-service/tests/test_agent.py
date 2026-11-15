@@ -169,7 +169,7 @@ def test_agent_streams_v2_events_with_the_fake_llm(client: TestClient) -> None:
         "steps": 2,
         "toolCalls": 1,
     }
-    assert (done["protocolVersion"], done["promptVersion"]) == (2, "agent-system@2")
+    assert (done["protocolVersion"], done["promptVersion"]) == (2, "agent-system@5")
     assert done["promptHash"] == agent_module.PROMPT.hash
 
 
@@ -191,7 +191,7 @@ def test_rag_mode_runs_the_phase_1_pipeline_with_a_v2_done(client: TestClient) -
     assert {name for name, _ in events[1:-1]} == {"token"}
     done = events[-1][1]
     assert (done["stopReason"], done["answerStatus"]) == ("end", "answered")
-    assert (done["promptVersion"], done["usage"]["steps"]) == ("rag-system@1", 1)
+    assert (done["promptVersion"], done["usage"]["steps"]) == ("rag-system@4", 1)
 
 
 BAD_REQUESTS: list[dict[str, Any]] = [
@@ -543,7 +543,7 @@ def test_an_approved_ingest_runs_once_through_the_mcp_server(
     app = cast(FastAPI, client.app)
     settings = Settings(approval_signing_key=SIGNING_KEY)
     mcp = McpClient(settings.mcp_resource_url)
-    url = "https://raw.githubusercontent.com/davidkutt/FS100/main/README.md"
+    url = "https://raw.githubusercontent.com/davidkutt/pecker-grove/main/README.md"
 
     async def tools(domains: list[Domain] | None, caller: Caller) -> list[ToolSpec[Any]]:
         return kb_tools(mcp, Tokens(settings), caller, domains)
@@ -598,15 +598,17 @@ def test_tool_output_is_untrusted_and_truncated_to_its_budget() -> None:
     assert len(result.content) < 25 * 4 + 120
 
 
-def hit(chunk: str, score: float) -> Hit:
+def hit(chunk: str, score: float, parent: str | None = None) -> Hit:
     return Hit.model_validate(
-        {"chunk_id": chunk, "doc_id": uuid4(), "title": chunk, "filename": f"{chunk}.md"}
-        | {"page": None, "heading": None, "domains": ["devops"], "score": score, "text": chunk}
+        {"chunk_id": chunk, "parent_id": parent, "doc_id": uuid4(), "title": chunk}
+        | {"filename": f"{chunk}.md", "page": None, "heading": None, "domains": ["devops"]}
+        | {"score": score, "text": chunk}
     )
 
 
 def test_source_numbers_stay_stable_across_searches() -> None:
-    searches = [[hit("a", 0.7), hit("b", 0.6)], [hit("b", 0.6), hit("c", 0.9)]]
+    """Another chunk of a section already found is the same source (D59)."""
+    searches = [[hit("a", 0.7), hit("b", 0.6, "s")], [hit("b2", 0.6, "s"), hit("c", 0.9)]]
 
     async def search(_: Args) -> ToolOutput:
         return ToolOutput("", "hits", searches.pop(0))
@@ -882,8 +884,8 @@ def test_web_fetch_reads_a_page_as_text_from_the_checked_address(
 
     page = fetch("https://docs.example/moved")
 
-    assert page.content == "https://docs.example/\n\nRunbook\nDeploy\nRun make deploy."
-    assert page.summary == "docs.example: 31 chars"
+    assert page.content == "https://docs.example/\n\nRunbook\n# Deploy\nRun make deploy."
+    assert page.summary == "docs.example: 33 chars"
     assert [(r.url.host, r.headers["host"], r.extensions["sni_hostname"]) for r in requests] == [
         (PUBLIC_IP, "docs.example", "docs.example")
     ] * 2

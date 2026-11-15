@@ -131,7 +131,7 @@ Status: **L** = locked · **C** = changed in v2 · **N** = new in v2. ADR number
 **Still open (decide during M1.0):**
 - ~~**RAM size** of the Mac~~ — **16 GB** (checked 2026-10-19), A1 holds.
 - ~~**Monthly token cap**~~ — **20 USD/month** as the OpenRouter key limit with monthly reset (decided 2026-10-19).
-- ~~**Project name**~~ — **FS100** for now (decided 2026-10-19); identifiers keep `kb-*`.
+- ~~**Project name**~~ — **FS100** for now (decided 2026-10-19), **Grove** since 2026-10-28 (repository `pecker-grove`); identifiers keep `kb-*`.
 - ~~**Dev and demo model**~~ — decided in [ADR-0005](docs/adr/0005-llm-access-and-model.md); agent mode in ADR-0007.
 
 ---
@@ -599,6 +599,8 @@ AI_SERVICE_URL=http://localhost:8000
 AI_SERVICE_AUDIENCE=kb-ai
 CORS_ORIGINS=http://localhost:4200
 UPLOAD_MAX_MB=20
+NOTES_DIR=                                  # absolute path of a Markdown notes folder kept in sync (M3c.1); empty = none
+SOURCES_SYNC_MINUTES=15                     # notes and URL sources sync at boot and then this often; 0 = boot and admin "Sync" only
 CHAT_THROTTLE_PER_MIN=20
 
 # --- ai-service (FastAPI) ---
@@ -613,6 +615,7 @@ EMBEDDING_MODEL=BAAI/bge-m3                 # ADR-0004
 EMBEDDING_CACHE_DIR=./.cache/fastembed
 CHUNK_SIZE=1000
 CHUNK_OVERLAP=150
+PARENT_SIZE=2000                            # ADR-0018: chunks go to the LLM as their section (≤ 2000 chars); 0 = off; then pnpm kb:reindex
 SPARSE_MODEL=bm25-english                   # ADR-0016: none | bm25-english | bm25-neutral; then pnpm kb:reindex
 # ADR-0017: off (none). Opt-in on restart, no re-index, but set the threshold with it:
 # jinaai/jina-reranker-v2-base-multilingual-int8 (CC BY-NC 4.0, non-commercial) → 0.35,
@@ -621,6 +624,10 @@ RERANKER_MODEL=none
 RERANK_CANDIDATES=10                        # fused hits the reranker scores; jina: p95 1.5 s on the M1 (D57)
 RETRIEVAL_TOP_K=5
 RETRIEVAL_SCORE_THRESHOLD=0.55              # ADR-0004 calibration, model-specific (0.35 with jina, above)
+QUERY_MODEL=                                # HyDE, `strategy: hyde` (plan-phase-3.md D58); empty = LLM_MODEL
+CONTEXTUAL_DOMAINS=db,dev,cloud,devops,mlops,ai,security,architecture,sre   # contextual retrieval (plan-phase-3.md D60, ADR-0019); empty = off
+CONTEXTUAL_MODEL=                           # empty = LLM_MODEL
+CONTEXTUAL_MAX_COST_USD_PER_DOC=0.05
 LLM_PROVIDER=openai_compat                  # openai_compat | fake
 LLM_BASE_URL=https://openrouter.ai/api/v1   # HF alternative: https://router.huggingface.co/v1
 LLM_API_KEY=                                # OpenRouter key WITH a credit limit; required unless fake
