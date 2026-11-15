@@ -15,7 +15,7 @@ This recipe never touches it. Scratch files go to the session scratchpad (`$S`).
    docker run -d --name grove-m24-kc -p 127.0.0.1:8081:8080 -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
      -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin -e KC_HOSTNAME=http://localhost:8081 \
      -v "$PWD/infra/keycloak/realm-kb.json:/opt/keycloak/data/import/realm-kb.json:ro" \
-     quay.io/keycloak/keycloak:26.8.1 start-dev --import-realm --features=cimd,resource-indicators
+     quay.io/keycloak/keycloak:26.8.2-2 start-dev --import-realm --features=cimd,resource-indicators
    until curl -sf localhost:8081/realms/kb/.well-known/openid-configuration >/dev/null; do sleep 2; done
    ```
 
