@@ -89,7 +89,7 @@ answers without the GitHub tools.
 - Tick in `plan-daily-use.md` only the boxes whose check ran on the daily stack today, each with the
   date and one line of evidence (counts, question and hits, memory numbers). Leave the rest open and
   say why.
-- Update the status lines that mention the open M2.8 hand check (`README.md`, `CLAUDE.md`).
+- Update the status lines that mention the open M2.8 hand check (`README.md`, `AGENTS.md`).
 - One pull request: `mem_limit`, the plan and the status lines. `pnpm lint && pnpm test` pass.
 
 ## Rules
