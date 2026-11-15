@@ -218,9 +218,9 @@ SDK + OpenInference/OpenTelemetry (M1.1/M1.3), `pypdf` (M1.2), Drizzle + `jose` 
 | Service | Image | Ports (localhost only) | Notes |
 |---|---|---|---|
 | Postgres | `postgres:17.11` | 5432 | `infra/postgres/init.sql` creates the `keycloak` and `app` databases on first start |
-| Keycloak | `quay.io/keycloak/keycloak:26.8.1` | 8080 | `start-dev --import-realm --features=cimd,resource-indicators` with `infra/keycloak/realm-kb.json`; state lives in Postgres |
-| Qdrant | `qdrant/qdrant:v1.19.2` | 6333 (REST, dashboard), 6334 (gRPC) | Telemetry disabled |
-| Phoenix | `arizephoenix/phoenix:version-20.23.0` | 6006 (UI, OTLP/HTTP), 4317 (OTLP/gRPC) | SQLite in a named volume |
+| Keycloak | `quay.io/keycloak/keycloak:26.8.2-2` | 8080 | `start-dev --import-realm --features=cimd,resource-indicators` with `infra/keycloak/realm-kb.json`; state lives in Postgres |
+| Qdrant | `qdrant/qdrant:v1.20.0` | 6333 (REST, dashboard), 6334 (gRPC) | Telemetry disabled |
+| Phoenix | `arizephoenix/phoenix:version-20.27.0` | 6006 (UI, OTLP/HTTP), 4317 (OTLP/gRPC) | SQLite in a named volume |
 
 Pinned in M2.0 (`plan-phase-2.md` D47). Bump minor lines deliberately; Qdrant always together with
 `qdrant-client`. Existing volumes migrate in place on the next `pnpm stack:up` (there is no downgrade).
