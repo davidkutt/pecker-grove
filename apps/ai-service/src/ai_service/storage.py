@@ -3,7 +3,8 @@ chunk contexts (D60) and job progress; Procrastinate keeps its queue there too."
 
 import hashlib
 from dataclasses import dataclass
-from typing import Any, Literal, LiteralString, Protocol
+from pathlib import Path
+from typing import Any, Literal, LiteralString, Protocol, cast
 from uuid import UUID
 
 import psycopg
@@ -26,7 +27,7 @@ JobState = Literal[
 ]
 
 # Applied once each, in order. Never edit an applied one; add the next.
-# shortcut: Procrastinate's schema as of 3.10; a Procrastinate upgrade adds its migration SQL here.
+# shortcut: Procrastinate's schema as of 3.11; a Procrastinate upgrade adds its migration SQL here.
 MIGRATIONS: list[tuple[str, LiteralString]] = [
     ("0001_procrastinate", SchemaManager.get_schema()),
     (
@@ -68,6 +69,16 @@ MIGRATIONS: list[tuple[str, LiteralString]] = [
           primary key (doc_id, key)
         );
         """,
+    ),
+    (
+        "0005_procrastinate_3_11",
+        cast(
+            LiteralString,
+            Path(
+                SchemaManager.get_migrations_path(),
+                "03.11.00_01_pre_fetch_job_skip_null_lock.sql",
+            ).read_text(encoding="utf-8"),
+        ),
     ),
 ]
 
