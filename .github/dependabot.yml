@@ -30,6 +30,11 @@ updates:
     ignore:
       - dependency-name: '*'
         update-types: [version-update:semver-major]
+      # Python 3.13 → 3.14+ is a deliberate decision, not a Dependabot bump: pyproject.toml pins
+      # requires-python ">=3.13,<3.14", so a newer image breaks `uv sync --locked` (see #23). Move
+      # .python-version, pyproject.toml, uv.lock and the Dockerfile together. Patch bumps still come.
+      - dependency-name: python
+        update-types: [version-update:semver-minor, version-update:semver-major]
 
   - package-ecosystem: docker-compose
     directory: /infra/compose

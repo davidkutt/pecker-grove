@@ -17,7 +17,7 @@ test('login → upload → ask → cited answer', async ({ page }) => {
   await page.getByRole('link', { name: 'Documents' }).click();
   await page.getByRole('group', { name: 'Domains' }).getByText('devops').click();
   await page
-    .getByLabel(/PDF, Markdown or text files/)
+    .getByLabel(/or drop them here/)
     .setInputFiles({ name: filename, mimeType: 'text/markdown', buffer: Buffer.from(content) });
   const row = page.getByRole('row', { name: new RegExp(filename) });
   await expect(row.getByText('ready')).toBeVisible({ timeout: 60_000 });
