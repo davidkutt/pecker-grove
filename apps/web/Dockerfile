@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Build from the repo root: docker build -f apps/web/Dockerfile .
 # One image for every environment: nginx renders /config.json from the WEB_* variables on start (D17).
-FROM --platform=$BUILDPLATFORM node:24.22.0-trixie-slim AS build
+FROM --platform=$BUILDPLATFORM node:24.22.2-trixie-slim AS build
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable pnpm
 WORKDIR /repo
@@ -14,7 +14,7 @@ COPY packages/contracts packages/contracts
 COPY apps/web apps/web
 RUN pnpm --filter @grove/web build
 
-FROM nginxinc/nginx-unprivileged:1.31.6-alpine
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY apps/web/config.json.template /etc/nginx/templates/
 COPY --from=build /repo/apps/web/dist/web/browser /usr/share/nginx/html
