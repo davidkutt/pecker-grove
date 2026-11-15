@@ -7,7 +7,6 @@ import socket
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
 from dataclasses import dataclass
-from html.parser import HTMLParser
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
@@ -18,8 +17,10 @@ from pydantic import BaseModel, Field, HttpUrl, RootModel, WithJsonSchema
 
 from ai_service.core.auth import Caller
 from ai_service.core.settings import Settings
+from ai_service.ingest import html_text
 from ai_service.knowledge_base import Domain, Hit
 from ai_service.mcp_client import McpClient
+from ai_service.query import STRATEGY, Strategy
 from ai_service.tokens import Tokens
 
 ToolKind = Literal["read", "write"]
@@ -33,12 +34,6 @@ GITHUB_TRANSPORT: httpx2.AsyncBaseTransport | None = None  # tests answer for Gi
 WEB_TRANSPORT: httpx2.AsyncBaseTransport | None = None  # tests answer for the web
 WEB_MAX_BYTES = 2_000_000  # decoded, so a gzip bomb stops here too
 _NAT64 = ipaddress.ip_network("64:ff9b::/96")  # `is_global` lets it through; it embeds any IPv4
-_HIDDEN = {"script", "style", "noscript", "template", "svg"}
-_BLOCKS = {
-    *("br", "p", "div", "li", "tr", "pre", "blockquote", "section", "article", "header"),
-    *("footer", "nav", "main", "table", "ul", "ol", "dt", "dd", "hr", "title"),
-    *(f"h{level}" for level in range(1, 7)),
-}
 # Set by the harness while an approved write runs; the write's idempotency key (D39).
 approval_id: ContextVar[str | None] = ContextVar("approval_id", default=None)
 logger = logging.getLogger(__name__)
@@ -136,11 +131,12 @@ class SearchArgs(BaseModel):
     domains: list[Domain] | None = Field(
         None, description="Only search these domains; null searches all."
     )
+    strategy: Strategy = Field("plain", description=STRATEGY)
 
 
 class DocumentArgs(BaseModel):
     doc_id: UUID
-    offset: int = Field(0, ge=0, description="First chunk; use `next_offset` to read on.")
+    offset: int = Field(0, ge=0, description="First section; use `next_offset` to read on.")
 
 
 class SourcesArgs(BaseModel):
@@ -164,39 +160,6 @@ class FetchArgs(BaseModel):
     url: Annotated[HttpUrl, WithJsonSchema({"type": "string"})] = Field(
         description="An http(s) URL on one of the allowed hosts"
     )
-
-
-class _PageText(HTMLParser):
-    """Text of an HTML page. Text hidden by CSS stays in: the result is untrusted data anyway."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.parts: list[str] = []
-        self._hidden = 0
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in _HIDDEN:
-            self._hidden += 1
-        elif tag in _BLOCKS:
-            self.parts.append("\n")
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag in _HIDDEN:
-            self._hidden = max(0, self._hidden - 1)
-        elif tag in _BLOCKS:
-            self.parts.append("\n")
-
-    def handle_data(self, data: str) -> None:
-        if not self._hidden:
-            self.parts.append(data)
-
-
-def html_text(html: str) -> str:
-    parser = _PageText()
-    parser.feed(html)
-    parser.close()
-    lines = (" ".join(line.split()) for line in "".join(parser.parts).splitlines())
-    return "\n".join(line for line in lines if line)
 
 
 async def public_ip(host: str, port: int) -> str:
@@ -223,7 +186,7 @@ def kb_tools(
         return result.structured_content or {}
 
     async def search(args: SearchArgs) -> ToolOutput:
-        filtered = SearchArgs(query=args.query, domains=args.domains or domains)
+        filtered = args.model_copy(update={"domains": args.domains or domains})
         hits = [
             Hit.model_validate(hit)
             for hit in (await call("search_knowledge_base", filtered))["hits"]
@@ -233,7 +196,7 @@ def kb_tools(
 
     async def get_document(args: DocumentArgs) -> ToolOutput:
         doc = await call("get_document", args)
-        summary = f"{len(doc['chunks'])} of {doc['chunk_count']} chunks"
+        summary = f"{len(doc['sections'])} of {doc['section_count']} sections"
         return ToolOutput(json.dumps(doc, ensure_ascii=False), summary)
 
     async def list_sources(args: SourcesArgs) -> ToolOutput:
@@ -257,7 +220,7 @@ def kb_tools(
         ToolSpec(
             name="kb.get_document",
             server="kb",
-            description="Read a document from the knowledge base, a few chunks at a time.",
+            description="Read a document from the knowledge base, a few sections at a time.",
             args=DocumentArgs,
             run=get_document,
             result_budget_tokens=3000,

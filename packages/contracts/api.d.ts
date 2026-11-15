@@ -148,6 +148,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/sources/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SourcesController_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/models": {
         parameters: {
             query?: never;
@@ -400,10 +416,16 @@ export interface components {
             mime: string;
             sizeBytes: number;
             sha256: string;
+            source: string | null;
             domains: ("db" | "dev" | "cloud" | "devops" | "mlops" | "ai" | "security" | "architecture" | "sre")[];
             topics: string[];
             /** @enum {string} */
-            status: "pending" | "queued" | "parsing" | "embedding" | "ready" | "failed";
+            status: "pending" | "queued" | "parsing" | "contextualizing" | "embedding" | "ready" | "failed";
+            /** @enum {string} */
+            lifecycle: "active" | "retired";
+            /** @enum {string} */
+            priority: "canonical" | "normal" | "low";
+            priorityTopics: string[];
             version: number;
             jobId: string | null;
             error: string | null;
@@ -418,6 +440,11 @@ export interface components {
         DocumentLabels: {
             domains?: ("db" | "dev" | "cloud" | "devops" | "mlops" | "ai" | "security" | "architecture" | "sre")[];
             topics?: string[];
+            /** @enum {string} */
+            priority?: "canonical" | "normal" | "low";
+            priorityTopics?: string[];
+            /** @enum {string} */
+            lifecycle?: "active" | "retired";
         };
         DocumentFromUrl: {
             /** Format: uri */
@@ -433,6 +460,16 @@ export interface components {
             reason?: string;
             /** @default false */
             force?: boolean;
+        };
+        SourcesSync: {
+            added: string[];
+            updated: string[];
+            deleted: string[];
+            unchanged: number;
+            skipped: {
+                source: string;
+                reason: string;
+            }[];
         };
         Taxonomy: {
             version: number;
@@ -786,7 +823,7 @@ export interface operations {
                         /** Format: uuid */
                         id: string;
                         /** @enum {string} */
-                        status: "pending";
+                        status: "pending" | "unchanged";
                     };
                 };
             };
@@ -848,6 +885,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    SourcesController_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourcesSync"];
+                };
             };
         };
     };

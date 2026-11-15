@@ -1,0 +1,45 @@
+{
+  "$comment": "Adds to Pi's built-in safety rules. Paths are repository-relative; a path without wildcards covers everything below it. The format has no negation, so the secret .env variants are listed one by one to keep .env.example readable.",
+  "write": [
+    "evals/datasets/",
+    "evals/baselines/",
+    "data/sample-docs/",
+    "infra/keycloak/realm-kb.json"
+  ],
+  "read": [
+    ".env",
+    ".env.local",
+    ".env.*.local",
+    ".env.development",
+    ".env.production",
+    ".env.test",
+    "backups/",
+    "evals/local/"
+  ],
+  "commands": [
+    {
+      "pattern": "pnpm\\s+(run\\s+)?stack:reset\\b",
+      "reason": "wipes every Docker volume, including the user's Postgres and Qdrant data"
+    },
+    {
+      "pattern": "(docker[- ]compose|compose|stack\\.mjs)\\b.*\\bdown\\b.*(-v\\b|--volumes\\b)",
+      "reason": "deletes Docker volumes, including the user's Postgres and Qdrant data"
+    },
+    {
+      "pattern": "docker\\s+volume\\s+(rm|prune)\\b",
+      "reason": "deletes Docker volumes, including the user's Postgres and Qdrant data"
+    },
+    {
+      "pattern": "pnpm\\s+(run\\s+)?kb:reindex\\b|kb-admin\\s+reindex\\b",
+      "reason": "rebuilds the live kb_current index the user searches from"
+    },
+    {
+      "pattern": "pnpm\\s+(run\\s+)?kb:backfill-originals\\b|kb-admin\\s+backfill-originals\\b",
+      "reason": "writes originals into the live ai database"
+    },
+    {
+      "pattern": "pnpm\\s+(run\\s+)?eval:(agent|redteam|routing)\\b|kb-eval\\s+(agent|redteam|routing)\\b",
+      "reason": "makes paid LLM calls with the real keys from .env"
+    }
+  ]
+}

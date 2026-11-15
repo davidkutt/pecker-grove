@@ -9,7 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import type { components } from '@fs100/contracts/api';
+import type { components } from '@grove/contracts/api';
 import Keycloak from 'keycloak-js';
 import { firstValueFrom } from 'rxjs';
 import { APP_CONFIG } from '../../core/config';
@@ -18,6 +18,7 @@ import { DomainPicker } from '../../shared/domain-picker';
 
 type Document = components['schemas']['Document'];
 type Taxonomy = components['schemas']['Taxonomy'];
+type SourcesSync = components['schemas']['SourcesSync'];
 
 /** Upload, list and delete documents; the controls follow the roles, the API enforces them (D6). */
 @Component({
@@ -29,7 +30,7 @@ export class Documents {
   private readonly api = inject(APP_CONFIG).apiBaseUrl;
   private readonly http = inject(HttpClient);
   private readonly keycloak = inject(Keycloak);
-  private readonly isAdmin = this.keycloak.hasRealmRole('admin');
+  protected readonly isAdmin = this.keycloak.hasRealmRole('admin');
 
   protected readonly canUpload = this.keycloak.hasRealmRole('editor');
   protected readonly docs = httpResource<Document[]>(() => `${this.api}/api/documents`);
@@ -42,14 +43,21 @@ export class Documents {
   protected readonly editDomains = signal<string[]>([]);
   protected readonly editTopics = signal<string[]>([]);
   protected readonly editTopicOptions = computed(() => this.topicsOf(this.editDomains()));
+  protected readonly priorities: Document['priority'][] = ['canonical', 'normal', 'low'];
+  protected readonly editPriority = signal<string>('normal');
+  /** The sub-topics a priority applies to (D61). */
+  protected readonly editPriorityTopics = signal<string[]>([]);
   protected readonly editError = signal('');
   protected readonly errors = signal<string[]>([]);
   protected readonly uploading = signal(false);
+  protected readonly syncing = signal(false);
+  protected readonly synced = signal<SourcesSync | undefined>(undefined);
   protected readonly dragging = signal(false);
   protected readonly badge: Record<Document['status'], string> = {
     pending: 'text-bg-secondary',
     queued: 'text-bg-secondary',
     parsing: 'text-bg-info',
+    contextualizing: 'text-bg-info',
     embedding: 'text-bg-info',
     ready: 'text-bg-success',
     failed: 'text-bg-danger',
@@ -92,6 +100,20 @@ export class Documents {
     this.uploading.set(false);
   }
 
+  /** The notes folder and URL sources now instead of at the next interval (M3c.1). */
+  protected async sync(): Promise<void> {
+    this.syncing.set(true);
+    this.errors.set([]);
+    try {
+      const url = `${this.api}/api/admin/sources/sync`;
+      this.synced.set(await firstValueFrom(this.http.post<SourcesSync>(url, {})));
+    } catch (error) {
+      this.errors.set([`Sync: ${problemDetail(error)}`]);
+    }
+    this.syncing.set(false);
+    this.docs.reload();
+  }
+
   protected async remove(doc: Document): Promise<void> {
     if (!confirm(`Delete "${doc.filename}" and its vectors?`)) return;
     try {
@@ -106,6 +128,8 @@ export class Documents {
     this.editing.set(doc);
     this.editDomains.set(doc.domains);
     this.editTopics.set(doc.topics);
+    this.editPriority.set(doc.priority);
+    this.editPriorityTopics.set(doc.priorityTopics);
     this.editError.set('');
     this.labels().nativeElement.showModal();
   }
@@ -113,9 +137,16 @@ export class Documents {
   /** Relabels the chunks without re-ingesting (D48). */
   protected async saveLabels(doc: Document): Promise<void> {
     if (!this.editDomains().length) return this.editError.set('Pick at least one domain.');
+    const normal = this.editPriority() === 'normal';
+    const scope = normal ? [] : this.picked(this.editPriorityTopics(), this.editTopicOptions());
+    if (!normal && !scope.length) {
+      return this.editError.set('Pick the sub-topics the priority applies to.');
+    }
     const body = {
       domains: this.editDomains(),
       topics: this.picked(this.editTopics(), this.editTopicOptions()),
+      priority: this.editPriority(),
+      priorityTopics: scope,
     };
     try {
       await firstValueFrom(this.http.patch(`${this.api}/api/documents/${doc.id}`, body));
@@ -124,6 +155,16 @@ export class Documents {
     } catch (error) {
       this.editError.set(problemDetail(error));
     }
+  }
+
+  /** Retired documents are never retrieved; activating brings them back (D61). */
+  protected async setLifecycle(doc: Document, lifecycle: Document['lifecycle']): Promise<void> {
+    try {
+      await firstValueFrom(this.http.patch(`${this.api}/api/documents/${doc.id}`, { lifecycle }));
+    } catch (error) {
+      this.errors.set([`${doc.filename}: ${problemDetail(error)}`]);
+    }
+    this.docs.reload();
   }
 
   protected working(doc: Document): boolean {

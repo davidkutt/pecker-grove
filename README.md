@@ -1,4 +1,4 @@
-# FS100 — the FULL FULL stack
+# Grove — the FULL FULL stack
 
 **A RAG and agent assistant for the "Dev of the future"** — an engineer fluent across DB · Dev · Cloud ·
 DevOps · MLOps · AI integration · Security · Architecture · SRE. Upload documents tagged by domain, ask
@@ -14,8 +14,12 @@ prompt is a **versioned file** whose version and hash land on messages, traces a
 user has a **daily cost cap**. Agent behaviour is measured too: task success, tool selection, cost and
 latency on fixture MCP servers, plus a red-team seed set.
 
-The project is built in six phases: [plan.md](plan.md) (Phase 1, done except the postponed Azure spike)
-and [plan-phase-2.md](plan-phase-2.md) (Phase 2, M2.0 – M2.7 done; M2.8 code-complete).
+Phases 1 and 2 are done, apart from the postponed Azure spike and the M2.8 hand check. Phase 3a (retrieval
+quality) is done through M3a.7. **Since 2026-10-26 Grove is being turned into a daily-use tool**: personal
+Markdown notes as the corpus, used from Claude Code / VS Code and the web UI, locally on a 16 GB M1
+([plan-daily-use.md](plan-daily-use.md)). Point `NOTES_DIR` at your notes folder and the API keeps it in
+sync ([startup guide](docs/setup/startup.md#your-notes-and-urls-as-sources)). The Kubernetes, Azure and MLOps
+phases are parked.
 
 ---
 
@@ -102,6 +106,20 @@ the held-out `test` split (20 answerable questions; plan-phase-3.md D51, baselin
 | Phase 2: dense | 0.65 | 0.95 | 0.77 | 0.78 | 0.48 |
 | **+ hybrid** (BM25, weighted RRF; [ADR-0016](docs/adr/0016-hybrid-search-sparse-side.md)) | **0.70** | **0.95** | **0.79** | **0.81** | **0.59** |
 | + rerank (jina-v2 int8, top 10; opt-in, off: [ADR-0017](docs/adr/0017-reranker.md)) | 0.70 | 0.85 | 0.78 | 0.81 | 0.54 |
+| + HyDE per search (the agent's `strategy: hyde`; +3.6 s p50, ~0.0001 USD; M3a.4) | 0.70 | 1.00 | 0.85 | 0.87 | 0.75 |
+| + Docling for PDFs, chunks in parent sections ≤ 2000 chars (without HyDE; [ADR-0018](docs/adr/0018-docling-parent-child-chunking.md)) | 0.70 | 0.95 | 0.78 | 0.81 | 0.57 |
+| **+ contextual retrieval** (a context per chunk at ingest, ~0.035 USD once for the corpus; default; [ADR-0019](docs/adr/0019-contextual-retrieval-chunk-topics.md)) | **0.70** | **1.00** | **0.83** | **0.85** | **0.69** |
+
+Multi-query and a standalone rewrite of follow-ups lost on `dev` and were dropped
+([plan-phase-3.md M3a.4](plan-phase-3.md#m3a4--query-transformation-5-h)). Parent sections are neutral for
+retrieval; they change what the LLM reads — each section whole and once (+37 % prompt text) — and
+Docling's HybridChunker lost on `dev`. Contextual retrieval sends each document whole to OpenRouter at
+ingest and lowers abstention accuracy at the 0.55 threshold (`test` 0.95 → 0.93); the same call gives
+each chunk its sub-topics (47 of 50 spot-checked right). Documents can be retired (never retrieved) or
+pinned `canonical` / `low` for sub-topics, which moves their hits after reranking (M3a.7); pinning every
+runbook lowered MRR@10 on `test` from 0.90 to 0.88 on the same contextual index — the runbooks already rank
+first, and a wrongly routed question lets a pinned runbook push the right one down — so nothing is pinned by
+default ([plan-phase-3.md M3a.7](plan-phase-3.md#m3a7--lifecycle--priorities-5-h)).
 
 Each chat request is traced in Phoenix (http://localhost:6006): `chat → embed → search → llm` with the
 prompt, token counts and latency; the chat UI links every answer to its trace.
@@ -111,7 +129,7 @@ prompt, token counts and latency; the chat UI links every answer to its trace.
 **Just run it** — Docker and Node 24 only, everything in containers (Mode B):
 
 ```bash
-git clone https://github.com/davidkutt/FS100.git && cd FS100
+git clone https://github.com/davidkutt/pecker-grove.git && cd pecker-grove
 corepack enable pnpm
 cp .env.example .env    # either set LLM_API_KEY (OpenRouter key with a credit limit) + LLM_MODEL,
                         # or set LLM_PROVIDER=fake for free, canned answers
@@ -162,7 +180,7 @@ steps 3–4 also need `GITHUB_REPO`, `GITHUB_SANDBOX_REPO` in `.env` and two fin
    spans, including the own MCP server's spans, with prompt version, prompt hash and model.
 10. `pnpm eval:agent`, `pnpm eval:redteam`, `pnpm eval:routing` — reports in `evals/runs/`
     ([evals/README.md](evals/README.md)); `pnpm eval:retrieval` is a blocking CI check.
-11. `claude mcp add --transport http fs100-kb http://localhost:8000/mcp`, then `/mcp` → *Authenticate* in
+11. `claude mcp add --transport http grove-kb http://localhost:8000/mcp`, then `/mcp` → *Authenticate* in
     Claude Code: log in as `carol` in Keycloak and ask it to search the knowledge base — it calls
     `search_knowledge_base`; `ingest_url` is refused ([startup guide](docs/setup/startup.md#use-the-knowledge-base-from-claude-code--vs-code),
     also VS Code; experimental Keycloak features, [ADR-0014](docs/adr/0014-external-mcp-clients-cimd.md)).
@@ -176,6 +194,7 @@ steps 3–4 also need `GITHUB_REPO`, `GITHUB_SANDBOX_REPO` in `.env` and two fin
 | `pnpm stack:up:full` | Infra **and** the apps as containers (Mode B), rebuilt when changed |
 | `pnpm stack:ps` / `stack:logs [service]` | Status / logs of the infra |
 | `pnpm stack:reset` | Stop the infra and **delete** its volumes |
+| `pnpm stack:backup` | Dump all Postgres databases to `backups/` ([startup guide §7](docs/setup/startup.md#backup-and-restore)) |
 | `pnpm mem` | Memory per app (RSS incl. child processes) and per container — the 16 GB budget of plan-phase-3.md D50 |
 | `pnpm lint` | angular-eslint · oxlint · prettier check · ruff · pyright |
 | `pnpm test` | Vitest (web, api) · pytest (ai-service) |
@@ -254,6 +273,8 @@ plan-phase-2.md   Phase 2 plan (agent, MCP, approvals)
 | [0015](docs/adr/0015-stored-originals-job-queue-reindex.md) | Stored originals, a Postgres job queue and an eval-gated re-index |
 | [0016](docs/adr/0016-hybrid-search-sparse-side.md) | Hybrid search: BM25 computed in the AI service, weighted RRF |
 | [0017](docs/adr/0017-reranker.md) | Reranking built and measured, off by default: no in-budget model holds hit@5 on `test` |
+| [0018](docs/adr/0018-docling-parent-child-chunking.md) | Docling for PDFs in a child process, stored parses; chunks searched, their sections (≤ 2000 chars) sent |
+| [0019](docs/adr/0019-contextual-retrieval-chunk-topics.md) | Contextual retrieval at ingest (document cached in the system prompt) and chunk sub-topics from the same call |
 
 ## Roadmap
 
@@ -261,10 +282,9 @@ plan-phase-2.md   Phase 2 plan (agent, MCP, approvals)
 |---|---|
 | 1 | Foundation + RAG slice + eval + tracing — *M1.0 – M1.6 done; M1.7 Azure spike postponed (local only for now)* |
 | **2** | Agent loop from scratch, agentic RAG, MCP server + client, domain tools, agent evals — *M2.0 – M2.7 done; M2.8 external MCP clients code-complete* |
-| 3 | Hybrid search, reranking, code-aware RAG, guardrails, routing + semantic cache, memory — *M3a.0 – M3a.3 done* |
-| 4 | Kubernetes: Helm, k3d, GitOps-ready manifests |
-| 5 | Azure: Terraform, ACR, AKS / Container Apps, Key Vault, OIDC from GitHub |
-| 6 | MLOps & local models: fine-tuning with MLflow, Ollama/MLX, system card |
+| 3a | Hybrid search, reranking, query transformation, Docling, contextual retrieval, priorities — *M3a.0 – M3a.7 done* |
+| **3c** | **Daily use**: stabilize, notes and URLs as sources, feedback → eval items, skills, long-term memory ([plan-daily-use.md](plan-daily-use.md)) |
+| — | *Parked:* code-aware RAG, judge gate, ACL, guardrails, cache, curator; Kubernetes, Azure, MLOps (plan-phase-4/5/6.md) |
 
 Phase 1 milestones: M1.0 repo & tooling → M1.1 infra + auth walking skeleton → M1.2 ingestion, retrieval,
 eval → M1.3 grounded chat → M1.4 documents + relays → M1.5 UI → M1.6 containers, CI, e2e · M1.7 Azure
@@ -272,9 +292,10 @@ readiness spike ([plan.md §8](plan.md#8-milestones-and-tasks)).
 
 ## Naming
 
-The project is called **FS100**. The plan's working title `kb-agent` survives in technical identifiers
-(Keycloak realm `kb`, clients `kb-web` / `kb-api` / `kb-ai`, Qdrant alias `kb_current`) so that plan.md and
-the contracts stay aligned.
+The project is called **Grove** (repository `pecker-grove`). The plan's working title `kb-agent` survives in
+technical identifiers (Keycloak realm `kb`, clients `kb-web` / `kb-api` / `kb-ai`, Qdrant alias `kb_current`) so
+that plan.md and the contracts stay aligned. The earlier name FS100 survives only where renaming would lose data:
+the Compose project `fs100` (its Docker volumes hold your data) and the frozen corpus and eval files.
 
 ## Contributing
 

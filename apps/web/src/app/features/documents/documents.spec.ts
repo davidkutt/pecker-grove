@@ -13,9 +13,13 @@ const doc = (id: string, ownerId: string, filename: string) => ({
   mime: 'text/markdown',
   sizeBytes: 1,
   sha256: id.repeat(64),
+  source: null as string | null,
   domains: ['devops'],
   topics: [],
   status: 'ready',
+  lifecycle: 'active',
+  priority: 'normal',
+  priorityTopics: [],
   version: 1,
   jobId: '1',
   error: null,
@@ -79,7 +83,36 @@ describe('Documents', () => {
     const page = await render(['editor', 'viewer']);
 
     expect(page.querySelector('input[type=file]')).not.toBeNull();
-    expect(deleteButtons(page)).toEqual(['Edit labels of mine.md', 'Delete mine.md']);
+    expect(deleteButtons(page)).toEqual([
+      'Edit labels of mine.md',
+      'Retire mine.md',
+      'Delete mine.md',
+    ]);
+  });
+
+  it('lets admins sync the notes folder and URLs, with what was skipped', async () => {
+    const note = { ...doc('c', 'notes', 'a.md'), source: 'notes:ops/a.md' };
+    const page = await render(['admin', 'editor', 'viewer'], [note]);
+    expect(page.querySelector('tbody')!.textContent).toContain('notes:ops/a.md');
+
+    const buttons = Array.from(page.querySelectorAll('button'));
+    buttons.find((b) => b.textContent?.includes('Sync notes and URLs'))!.click();
+    http.expectOne({ method: 'POST', url: 'http://api/api/admin/sources/sync' }).flush({
+      added: ['notes:ops/a.md'],
+      updated: [],
+      deleted: [],
+      unchanged: 4,
+      skipped: [{ source: 'notes:keys.md', reason: 'Looks like it holds a JWT' }],
+    });
+    (await vi.waitFor(() => http.expectOne('http://api/api/documents'))).flush([note]);
+    await fixture.whenStable();
+
+    expect(page.querySelector('[aria-live=polite]')!.textContent).toMatch(
+      /1 added, 0 updated,\s+0 deleted, 4 unchanged/,
+    );
+    expect(page.querySelector('.alert-warning')!.textContent).toContain(
+      'notes:keys.md: Looks like it holds a JWT',
+    );
   });
 
   it('shows the job state and polls until the job has ended', async () => {
@@ -120,6 +153,45 @@ describe('Documents', () => {
 
     const patch = http.expectOne('http://api/api/documents/a');
     expect(patch.request.method).toBe('PATCH');
-    expect(patch.request.body).toEqual({ domains: ['devops', 'sre'], topics: ['devops/iac'] });
+    expect(patch.request.body).toEqual({
+      domains: ['devops', 'sre'],
+      topics: ['devops/iac'],
+      priority: 'normal',
+      priorityTopics: [],
+    });
+  });
+
+  it('pins a priority to sub-topics and retires a document', async () => {
+    const page = await render(['editor', 'viewer']);
+    const click = async (selector: string) => {
+      page.querySelector<HTMLElement>(selector)!.click();
+      await fixture.whenStable();
+    };
+
+    await click('button[aria-label="Edit labels of mine.md"]');
+    const select = page.querySelector<HTMLSelectElement>('#priority')!;
+    select.value = 'canonical';
+    select.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    await click('dialog button[type=submit]');
+    expect(page.querySelector('dialog .alert-danger')?.textContent).toContain('sub-topics');
+    const scope = page.querySelectorAll('dialog fieldset')[2];
+    scope.querySelector<HTMLInputElement>('input[id$="devops/ci-cd"]')!.click();
+    await fixture.whenStable();
+    await click('dialog button[type=submit]');
+    const pin = http.expectOne('http://api/api/documents/a');
+    expect(pin.request.body).toMatchObject({
+      priority: 'canonical',
+      priorityTopics: ['devops/ci-cd'],
+    });
+    pin.flush({});
+    (await vi.waitFor(() => http.expectOne('http://api/api/documents'))).flush([
+      doc('a', 'bob', 'mine.md'),
+    ]);
+    await fixture.whenStable();
+
+    await click('button[aria-label="Retire mine.md"]');
+    const retire = http.expectOne('http://api/api/documents/a');
+    expect(retire.request.body).toEqual({ lifecycle: 'retired' });
   });
 });

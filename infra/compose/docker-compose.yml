@@ -1,10 +1,10 @@
-# Local stack for FS100 (plan.md D18). Run from the repo root (scripts/stack.mjs adds `.env` and `.env.local`):
+# Local stack for Grove (plan.md D18). Run from the repo root (scripts/stack.mjs adds `.env` and `.env.local`):
 # - Mode A, `pnpm stack:up`: infra only — Postgres, Qdrant, Keycloak, Phoenix, GitHub MCP server; apps run
 #   with `pnpm dev`.
 # - Mode B, `pnpm stack:up:full`: also web, api and ai-service as containers (`profiles: [full]`).
 # Ports follow plan.md §5, identical in both modes, and are bound to 127.0.0.1 only.
 # All images are multi-arch (amd64 + arm64). Every credential here is a dev-only default.
-name: fs100
+name: fs100 # old project name kept: renaming it orphans the volumes (`fs100_*`) that hold all local data
 
 services:
   postgres:
@@ -147,11 +147,16 @@ services:
       - EMBEDDING_MODEL
       - CHUNK_SIZE
       - CHUNK_OVERLAP
+      - PARENT_SIZE
       - SPARSE_MODEL
       - RERANKER_MODEL
       - RERANK_CANDIDATES
       - RETRIEVAL_TOP_K
       - RETRIEVAL_SCORE_THRESHOLD
+      - QUERY_MODEL
+      - CONTEXTUAL_DOMAINS # unset = off (.env.example: all nine)
+      - CONTEXTUAL_MODEL
+      - CONTEXTUAL_MAX_COST_USD_PER_DOC
       - LLM_PROVIDER # unset = fake
       - LLM_BASE_URL
       - LLM_API_KEY
@@ -185,6 +190,8 @@ services:
     volumes:
       # The first start downloads EMBEDDING_MODEL here (≈ 2.3 GB for bge-m3); later starts reuse it.
       - fastembed-cache:/app/.cache/fastembed
+      # Docling's layout and table models (≈ 1 GB), downloaded with the first PDF (ADR-0018).
+      - huggingface-cache:/app/.cache/huggingface
     depends_on:
       postgres:
         condition: service_healthy
@@ -217,8 +224,13 @@ services:
       - API_DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-dev-only-change-me}@postgres:5432/app
       - KEYCLOAK_REALM_URL=http://keycloak:8080/realms/kb
       - AI_SERVICE_URL=http://ai-service:8000
+      - NOTES_DIR=${NOTES_DIR:+/notes}
+      - SOURCES_SYNC_MINUTES
     ports:
       - '127.0.0.1:3000:3000'
+    volumes:
+      # The notes folder, read-only (M3c.1); without NOTES_DIR a stand-in that is never synced.
+      - ${NOTES_DIR:-.}:/notes:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -244,3 +256,4 @@ volumes:
   qdrant-data:
   phoenix-data:
   fastembed-cache:
+  huggingface-cache:
