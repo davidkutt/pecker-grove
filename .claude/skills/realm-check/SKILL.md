@@ -1,6 +1,6 @@
 ---
 name: realm-check
-description: Checks a change to infra/keycloak/realm-kb.json on a throwaway Keycloak (container grove-m24-kc on :8081) — token-exchange matrix of ADR-0009, CIMD logins of Claude Code / VS Code (ADR-0014), and optionally the API and AI service on :3001/:8001 against it — without resetting the user's stack or touching their running `pnpm dev`. Use when editing the realm, client scopes, client policies, token exchange, service accounts or MCP audiences ("does the realm import work", "check the token matrix", "verify kb-ai / kb-api exchange", "does Claude Code's login still work").
+description: Checks a change to infra/keycloak/realm-kb.json on a throwaway Keycloak (container grove-m24-kc on :8081) — token-exchange matrix of ADR-0009, CIMD logins of Claude Code / VS Code / Pi (ADR-0014), and optionally the API and AI service on :3001/:8001 against it — without resetting the user's stack or touching their running `pnpm dev`. Use when editing the realm, client scopes, client policies, token exchange, service accounts or MCP audiences ("does the realm import work", "check the token matrix", "verify kb-ai / kb-api exchange", "does Claude Code's login still work").
 ---
 
 # Realm change on a throwaway Keycloak
@@ -26,7 +26,9 @@ This recipe never touches it. Scratch files go to the session scratchpad (`$S`).
    CIMD (Keycloak fetches the real metadata documents, so it needs internet):
    `.claude/skills/realm-check/cimd-login.sh carol | python3 .claude/skills/realm-check/claims.py` (Claude Code,
    `kb:read offline_access`) → `aud=http://localhost:8000/mcp`, `kb:read`, roles `[viewer, offline_access]`; VS Code:
-   `cimd-login.sh bob https://vscode.dev/oauth/client-metadata.json http://127.0.0.1:33418/ "kb:read kb:write"`.
+   `cimd-login.sh bob https://vscode.dev/oauth/client-metadata.json http://127.0.0.1:33418/ "kb:read kb:write"`;
+   Pi (nest's copy of its document):
+   `cimd-login.sh carol https://davidkutt.github.io/pecker-nest/oauth/pi-client.json http://127.0.0.1:39773/callback`.
    A wrong 5th arg (`resource`), a redirect URI not in the document or a `client_id` on another host →
    `authorize refused: 400`. The full table is in ADR-0014.
 3. Optional, the apps against it. The realm's MCP audience must be the port you run on, so import a copy:
@@ -54,6 +56,11 @@ This recipe never touches it. Scratch files go to the session scratchpad (`$S`).
    `docker rm -f grove-m24-kc`.
 
 ## Pitfalls
+
+- `authorize refused: 400` says nothing about why: `docker logs grove-m24-kc 2>&1 | grep WARN`. A document
+  Keycloak cannot parse shows as `UnrecognizedPropertyException` / "Client Metadata fetch failed" (pi.dev's
+  does). With no policy for the `client_id`'s host, a browser shows "Client not found." `not trusted domain`
+  lines from the other policies' conditions are normal.
 
 - Imported users don't get the default role, so they lack `offline_access`. Claude Code's code exchange then
   fails with `Offline tokens not allowed for the user or client`. Seed users therefore list `offline_access` in

@@ -233,7 +233,7 @@ Set `NOTES_DIR` in `.env` to the absolute path of a Markdown folder, then restar
 
 MCP clients log in to the own MCP server through Keycloak themselves: no client to register, no token to
 paste ([ADR-0014](../adr/0014-external-mcp-clients-cimd.md)). Keycloak fetches the client's Client ID Metadata
-Document from claude.ai / vscode.dev (so it needs internet), creates a client for it and issues tokens with
+Document from claude.ai / vscode.dev / davidkutt.github.io (so it needs internet), creates a client for it and issues tokens with
 `aud=http://localhost:8000/mcp`.
 
 > **Experimental.** This relies on Keycloak's `cimd` and `resource-indicators` features, which are always on
@@ -259,10 +259,19 @@ what happens when the error budget is exhausted?"* — Claude Code calls `search
 Start the server, allow the authentication prompt, log in in the browser; the tools are then available in
 chat (agent mode).
 
+**Pi** (pecker-nest): the server `kb` is already in nest's `agent/mcp.json`. Pi's own metadata document on
+pi.dev is one Keycloak cannot parse, so nest uses a copy on GitHub Pages
+(`https://davidkutt.github.io/pecker-nest/oauth/pi-client.json`, policy `mcp-pi`). Log in once (the same in bash
+and fish):
+
+```bash
+pi mcp login kb
+```
+
 External clients get the read tools (`search_knowledge_base`, `get_document`, `list_sources`) with your roles.
 The server advertises only `kb:read`, so `ingest_url` fails with `insufficient_scope: needs kb:write` — add
-documents in the app. Tokens live 5 minutes and the client refreshes them. Claude Code asks for
-`offline_access`, so it stays logged in until it goes unused for 30 days (Keycloak's default). A client without
+documents in the app. Tokens live 5 minutes and the client refreshes them. Claude Code and Pi ask for
+`offline_access`, so they stay logged in until the login goes unused for 30 days (Keycloak's default). A client without
 it asks you to log in again after 30 minutes idle or 10 hours. Not supported: Claude Desktop and claude.ai connectors (they connect from
 Anthropic's cloud, which cannot reach `localhost`) and ChatGPT (Keycloak does not parse its metadata document).
 
