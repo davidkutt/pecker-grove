@@ -80,6 +80,17 @@ section.
   datasets, local secrets and the destructive or paid commands, with the reason given on refusal.
 - Everything else in this file applies unchanged.
 
+## Working in Cursor
+
+Applies only to agents running in Cursor. Agents in other tools (Pi, Claude Code) skip this section.
+
+- Hooks apply `.pi/protect.json` and run `.pi/gate.json` after your code changes. Report a block to David
+  with its reason; never work around it.
+- Never edit `.pi/`, `.cursorignore` or `.cursor/hooks.json`.
+- `git push` of a feature branch asks David for confirmation. Everything else in
+  [Workflow](#workflow-prs-commands-secrets-handoff) applies unchanged.
+- Run tests with `LLM_PROVIDER=fake` (never paid calls), as in Pi.
+
 ## What this is
 
 Grove is a RAG/agent assistant: upload domain-tagged documents, ask questions, get streamed answers with

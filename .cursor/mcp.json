@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "angular-cli": {
+      "command": "pnpm",
+      "args": ["--dir", "${workspaceFolder}/apps/web", "exec", "ng", "mcp", "--read-only"]
+    }
+  }
+}

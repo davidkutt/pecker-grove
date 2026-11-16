@@ -1,0 +1,10 @@
+# Mirrors the "read" list of .pi/protect.json; change both together. .env.example stays readable.
+# Blocks Cursor's own file tools only: terminal commands and MCP tools are stopped by the hook, not by this file.
+/.env
+/.env.local
+/.env.*.local
+/.env.development
+/.env.production
+/.env.test
+/backups/
+/evals/local/
