@@ -229,6 +229,29 @@ Set `NOTES_DIR` in `.env` to the absolute path of a Markdown folder, then restar
 - Every new or changed document runs contextual retrieval when its domain is in `CONTEXTUAL_DOMAINS`
   (≈ 0.002 USD each; 1,000 notes ≈ 2 USD once).
 
+To try it without your own notes, point `NOTES_DIR` at `data/sample-notes/` in this repo (seven short notes
+that cover frontmatter, a domain-named folder and the `dev` default).
+
+#### Switching the notes folder
+
+Notes are matched by their path relative to the folder (`notes:devops/x.md`), not by the folder. So at the
+first sync after a switch, every indexed note whose relative path is missing in the new folder is deleted
+(with its labels), every new path is added (and costs contextual retrieval), and a note at the same relative
+path becomes a new version. A note with the same content as another document is skipped. An empty or
+unmounted folder deletes nothing.
+
+```bash
+pnpm stack:backup                                        # the deletions are real
+find /path/to/notes -name '*.md' -not -path '*/.*' | wc -l   # × 0.002 USD = the one-off cost
+# .env: NOTES_DIR=/path/to/notes (absolute)
+pnpm dev                                                 # Mode A: stop it, start again
+pnpm stack:up:full                                       # Mode B: recreates the API container with the new mount
+```
+
+The API syncs at boot and logs `Sources: … added, … updated, … deleted, … skipped`; *Sync notes and URLs*
+then lists the skipped notes with their reasons (likely secrets, bad frontmatter). Removing `NOTES_DIR` stops
+the sync but keeps the indexed notes.
+
 ### Use the knowledge base from Claude Code / VS Code
 
 MCP clients log in to the own MCP server through Keycloak themselves: no client to register, no token to
