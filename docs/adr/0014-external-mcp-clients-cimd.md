@@ -53,6 +53,22 @@ real metadata documents and a scripted PKCE login (`.claude/skills/realm-check/c
 | kb-web token at `/mcp` · kb-web asking for `kb:read` | 401 · `invalid_scope` |
 | ADR-0009 token matrix | unchanged |
 
+## Amendment 2026-11-15: Pi (pecker-nest) as a third client
+
+Pi's own document (`https://pi.dev/oauth/client.json`) is not parsed by Keycloak 26.8.2: it carries
+`token_endpoint_auth_methods_supported`, a server-metadata field, and Keycloak's parser rejects unknown fields
+("Client Metadata fetch failed"; RFC 7591 says servers must ignore them). nest therefore publishes a copy
+without that field, `client_uri` and `logo_uri` at `https://davidkutt.github.io/pecker-nest/oauth/pi-client.json`
+(nest's `gh-pages` branch) and sets it as `oauth.clientId`. A third policy and profile `mcp-pi`
+follow the pattern above: host `davidkutt.github.io`, trusted domains `davidkutt.github.io`, `127.0.0.1`,
+`localhost`, same resource allow-list. Only David's GitHub account can publish under that host. The
+alternatives were a pre-registered public client (reverses this ADR) and waiting for Keycloak or Pi to fix it.
+
+Verified on a throwaway Keycloak 26.8.2: carol and bob log in with the copy (both loopback forms) →
+`aud=http://localhost:8000/mcp`, `kb:read`, `offline_access`, their roles; Claude Code and VS Code unchanged; a
+wrong `resource`, a redirect URI outside the document, a document on another `github.io` host and pi.dev's
+original → 400.
+
 ## Alternatives considered
 
 - **Opt-in profile `mcp-ext`** (the plan) — a trap, see above; switching back would need a script that

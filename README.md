@@ -31,9 +31,9 @@ phases are parked.
 | Product API / BFF | NestJS 12 (ESM) on Node 24 · Vitest + supertest · oxlint |
 | AI service | FastAPI on Python 3.13 (uv) · pydantic-settings · ruff · pyright (strict) · pytest |
 | Identity | Keycloak 26.8 — realm `kb`, OIDC Authorization Code + PKCE, roles `viewer` < `editor` < `admin` |
-| Data | Postgres 17 (`app`, `keycloak`) · Qdrant 1.19 (vectors) |
+| Data | Postgres 17 (`app`, `keycloak`) · Qdrant 1.20 (vectors) |
 | LLM & tracing | OpenRouter / Hugging Face router via one OpenAI-compatible adapter · Arize Phoenix (OpenTelemetry) |
-| Agent & tools | Own loop (no framework) · MCP Python SDK v2 (own server + client) · GitHub MCP server v2.0.2 |
+| Agent & tools | Own loop (no framework) · MCP Python SDK v2 (own server + client) · GitHub MCP server v2.1.0 |
 | Tooling | pnpm 12 workspaces + catalogs · uv · Docker Compose · GitHub Actions |
 
 ## Architecture

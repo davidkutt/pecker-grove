@@ -48,6 +48,8 @@ blob-report/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+.cursor/*
+!.cursor/mcp.json
 .history/
 *.swp
 .DS_Store

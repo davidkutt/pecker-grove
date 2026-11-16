@@ -60,7 +60,8 @@ Sizes at the current pace: S < half a day, M ≈ 1 day, L ≈ 2–3 days.
   matrix plus the scripted Claude Code CIMD login)
 - [ ] Recreate only Keycloak's database on the daily stack (`docs/setup/startup.md` §7) and confirm the
   documents are still listed under the same users
-- [ ] Hand check: Claude Code and VS Code log in to `/mcp`, and `search_knowledge_base` returns hits
+- [ ] Hand check: Claude Code, VS Code and Pi (pecker-nest, `pi mcp login kb`) log in to `/mcp`, and
+  `search_knowledge_base` returns hits
 - [ ] Daily run mode: measure Mode B (`pnpm stack:up:full`) with bge-m3, contextual retrieval and a Docling PDF
   peak (`pnpm mem` plus `sysctl vm.swapusage`); add `mem_limit` per compose service. Only if D50 still fails,
   put Phoenix behind a profile, after checking that the AI service runs without it

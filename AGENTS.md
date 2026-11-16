@@ -80,6 +80,17 @@ section.
   datasets, local secrets and the destructive or paid commands, with the reason given on refusal.
 - Everything else in this file applies unchanged.
 
+## Working in Cursor
+
+Applies only to agents running in Cursor. Agents in other tools (Pi, Claude Code) skip this section.
+
+- Hooks apply `.pi/protect.json` and run `.pi/gate.json` after your code changes. Report a block to David
+  with its reason; never work around it.
+- Never edit `.pi/`, `.cursorignore` or `.cursor/hooks.json`.
+- `git push` of a feature branch asks David for confirmation. Everything else in
+  [Workflow](#workflow-prs-commands-secrets-handoff) applies unchanged.
+- Run tests with `LLM_PROVIDER=fake` (never paid calls), as in Pi.
+
 ## What this is
 
 Grove is a RAG/agent assistant: upload domain-tagged documents, ask questions, get streamed answers with
@@ -139,7 +150,7 @@ orphans the user's volumes) and in the frozen `data/sample-docs/`, `evals/datase
 | `apps/ai-service` | **All AI code**: parse, chunk, embed, retrieve, prompt, LLM, evals, tracing. Internal only | FastAPI, Python 3.13 (uv), pydantic-settings, ruff, pyright strict, pytest |
 | `packages/contracts` | **Generated**, committed: OpenAPI of both services (+ SSE event schemas) and TS types | openapi-typescript |
 | `config/` | `models.yaml` (model registry, AI service), `taxonomy.yaml` (domains + sub-topics, API and AI service); copied into the images | YAML |
-| `infra/` | Compose (Postgres 17, Qdrant 1.19, Keycloak 26.8 with experimental `cimd,resource-indicators`, Phoenix; `--profile full` adds the apps), realm export, DB init | Docker Compose |
+| `infra/` | Compose (Postgres 17, Qdrant 1.20, Keycloak 26.8 with experimental `cimd,resource-indicators`, Phoenix; `--profile full` adds the apps), realm export, DB init | Docker Compose |
 | `e2e/` | Playwright smoke (login → upload → ask → citation), runs against :4200 | Playwright |
 | `data/sample-docs/` | Demo + eval corpus; `domains.json` = file → domain tags; repo docs are frozen snapshots | — |
 | `evals/` | Datasets (`datasets/*.jsonl`, frozen per version), fixture MCP server + scenarios (`fixtures/`); `runs/` git-ignored | — |

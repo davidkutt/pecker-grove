@@ -517,6 +517,26 @@
         ]
       },
       {
+        "name": "mcp-pi",
+        "description": "Pi (pecker-nest) with its own copy of Pi's metadata document on GitHub Pages: Keycloak cannot parse pi.dev's (ADR-0014)",
+        "executors": [
+          {
+            "executor": "client-id-metadata-document",
+            "configuration": {
+              "cimd-allow-permitted-domains": [
+                "davidkutt.github.io",
+                "127.0.0.1",
+                "localhost"
+              ],
+              "cimd-restrict-same-domain": "false",
+              "cimd-resource-indicator-allow-list": [
+                "http://localhost:8000/mcp"
+              ]
+            }
+          }
+        ]
+      },
+      {
         "name": "pkce-s256",
         "description": "PKCE with S256; auto-configure sets it on clients the CIMD executor creates",
         "executors": [
@@ -570,6 +590,26 @@
         ],
         "profiles": [
           "mcp-vscode"
+        ]
+      },
+      {
+        "name": "mcp-pi",
+        "enabled": true,
+        "conditions": [
+          {
+            "condition": "client-id-uri",
+            "configuration": {
+              "client-id-uri-scheme": [
+                "https"
+              ],
+              "client-id-uri-allow-permitted-domains": [
+                "davidkutt.github.io"
+              ]
+            }
+          }
+        ],
+        "profiles": [
+          "mcp-pi"
         ]
       },
       {
