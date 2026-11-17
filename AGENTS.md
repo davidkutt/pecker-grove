@@ -54,7 +54,6 @@ When creating or updating a skill:
   both folders, Pi the project one only in a trusted project). Claude Code reads only `.claude/skills/` and
   `~/.claude/skills/`: until the Claude Code exit on 2026-12-06, also add the symlink
   `.claude/skills/<name>` → `../../.agents/skills/<name>` (in `~/.claude/skills/` likewise).
-  `realm-check` still lives in `.claude/skills/`.
 - The `description` is all a future session sees before loading the skill, so it decides
   whether the skill ever gets used. Lead with what it does, then "Use when…" with the words
   I'd actually type and the files/tools involved. 1–3 sentences, clearly distinct from
