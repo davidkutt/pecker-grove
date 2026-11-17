@@ -730,7 +730,7 @@ now list theirs and cannot request them), and a scope mapping on `kb:read` carri
 is enforced for every public client by its own policy, since the `pkce-enforcer` in a CIMD profile never runs
 on the created client. The MCP server is unchanged: its metadata advertises `kb:read` only, so external
 clients get the read tools, and `ingest_url` fails with `insufficient_scope` (no step-up; ADR-0010). Verified on
-a throwaway Keycloak with the AI service on :8001 (`.claude/skills/realm-check/cimd-login.sh`, Claude Code's
+a throwaway Keycloak with the AI service on :8001 (`.agents/skills/realm-check/cimd-login.sh`, Claude Code's
 and VS Code's real documents): carol searches via `/mcp`, cannot ingest (also with `kb:write`); kb-web tokens
 get 401; no PKCE, a foreign host or redirect, or a wrong `resource` are refused; the ADR-0009 matrix is
 unchanged.

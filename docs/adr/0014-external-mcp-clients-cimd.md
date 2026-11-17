@@ -39,7 +39,7 @@ the plan put them in an opt-in Compose profile `mcp-ext`.
   the role as well.
 
 Verified on a throwaway Keycloak 26.8.1 with the AI service on :8001, using Claude Code's and VS Code's
-real metadata documents and a scripted PKCE login (`.claude/skills/realm-check/cimd-login.sh`):
+real metadata documents and a scripted PKCE login (`.agents/skills/realm-check/cimd-login.sh`):
 
 | Case | Result |
 |---|---|

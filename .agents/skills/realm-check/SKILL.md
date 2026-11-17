@@ -19,12 +19,12 @@ This recipe never touches it. Scratch files go to the session scratchpad (`$S`).
    until curl -sf localhost:8081/realms/kb/.well-known/openid-configuration >/dev/null; do sleep 2; done
    ```
 
-2. Token matrix: `.claude/skills/realm-check/matrix.sh`. Expect: user token `aud=kb-api` with `sub`,
+2. Token matrix: `.agents/skills/realm-check/matrix.sh`. Expect: user token `aud=kb-api` with `sub`,
    `preferred_username`, roles; hop 1 `aud=kb-ai`; hop 2 `aud=http://localhost:8000/mcp` + `kb:read kb:write`
    (also for carol — the MCP server checks the role); raw user token → `access_denied`; kb-ai's service token
    `aud=kb-api`, `resource_access.kb-api.roles=[ingest-on-behalf]`.
    CIMD (Keycloak fetches the real metadata documents, so it needs internet):
-   `.claude/skills/realm-check/cimd-login.sh carol | python3 .claude/skills/realm-check/claims.py` (Claude Code,
+   `.agents/skills/realm-check/cimd-login.sh carol | python3 .agents/skills/realm-check/claims.py` (Claude Code,
    `kb:read offline_access`) → `aud=http://localhost:8000/mcp`, `kb:read`, roles `[viewer, offline_access]`; VS Code:
    `cimd-login.sh bob https://vscode.dev/oauth/client-metadata.json http://127.0.0.1:33418/ "kb:read kb:write"`;
    Pi (nest's copy of its document):
