@@ -1,7 +1,7 @@
 """Upload → job states → re-index gate → rollback on throwaway state: API :3001 + AI :8001, databases
 app_reindex_check / ai_reindex_check, Qdrant alias kb_reindex_check. Removes only what it created.
 
-uv run --directory apps/ai-service python ../../.claude/skills/reindex-check/check.py [OUT_DIR]
+uv run --directory apps/ai-service python ../../.agents/skills/reindex-check/check.py [OUT_DIR]
 
 LIVE_<VAR>=value (e.g. LIVE_SPARSE_MODEL=none, LIVE_PARENT_SIZE=0): the uploads build the live
 collection with these settings, then the AI service restarts with .env's, so the re-index gate compares
@@ -68,7 +68,7 @@ def sql(statement: str, db: str = "postgres") -> list[tuple[object, ...]]:
 
 
 def login(user: str) -> dict[str, str]:
-    token = subprocess.check_output([".claude/skills/user-token/login.sh", user], cwd=ROOT, text=True)
+    token = subprocess.check_output([".agents/skills/user-token/login.sh", user], cwd=ROOT, text=True)
     return {"authorization": f"Bearer {token.strip()}"}
 
 

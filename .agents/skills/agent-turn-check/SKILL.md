@@ -20,7 +20,7 @@ Run from the repo root. Scratch files go to the session scratchpad (`$S` below).
    user's token like the API does (hop 1); a bare service token has no roles and gets no tools:
 
    ```bash
-   BOB=$(.claude/skills/user-token/login.sh bob)   # carol = viewer, alice = admin
+   BOB=$(.agents/skills/user-token/login.sh bob)   # carol = viewer, alice = admin
    TOKEN=$(curl -s -d grant_type=urn:ietf:params:oauth:grant-type:token-exchange -d client_id=kb-api \
      -d client_secret=dev-only-change-me -d subject_token=$BOB \
      -d subject_token_type=urn:ietf:params:oauth:token-type:access_token -d audience=kb-ai \
@@ -29,8 +29,8 @@ Run from the repo root. Scratch files go to the session scratchpad (`$S` below).
      -d '{"conversation_id":"'$(uuidgen | tr A-Z a-z)'","messages":[{"role":"user","parts":[{"type":"text","text":"QUESTION"}]}]}' > $S/turn.sse
    ```
 
-5. Summarize: `python3 .claude/skills/agent-turn-check/summarize.py $S/turn.sse` (event list, answer, trace id).
-6. Span tree: `python3 .claude/skills/agent-turn-check/spans.py <traceId>` — expect `agent.run` → `llm`
+5. Summarize: `python3 .agents/skills/agent-turn-check/summarize.py $S/turn.sse` (event list, answer, trace id).
+6. Span tree: `python3 .agents/skills/agent-turn-check/spans.py <traceId>` — expect `agent.run` → `llm`
    (prompt version + model) → `ChatCompletion` and `tool` → `MCP send tools/call` → `tools/call …` →
    `search` → `embed` (the KB tools go through the own MCP server, ADR-0010).
 7. Stop the AI service task when done; leave the infra running unless asked.

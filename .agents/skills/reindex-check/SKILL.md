@@ -12,7 +12,7 @@ API migration and the alias swap change their data, and `main` may not run on th
    `realm-check` skill uses them too); the API built from this branch: `pnpm --filter @grove/api build`.
 2. Run (≈ 10 min on the M1: model load, 17 documents ≈ 3 min, two builds ≈ 3 min each):
    ```bash
-   S=<scratchpad>; uv run --directory apps/ai-service python ../../.claude/skills/reindex-check/check.py $S
+   S=<scratchpad>; uv run --directory apps/ai-service python ../../.agents/skills/reindex-check/check.py $S
    ```
    Long: start it with `run_in_background` and wait for the notification. `LLM_PROVIDER=fake`, tracing off.
    To check a change of how collections are built against the old build (an upgrade), prefix the old

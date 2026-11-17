@@ -49,7 +49,7 @@ This recipe never touches it. Scratch files go to the session scratchpad (`$S`).
      AI_SERVICE_URL=http://localhost:8001 node apps/api/dist/main.js > $S/api3001.log 2>&1      # background
    ```
 
-   User token: `KEYCLOAK_URL=http://localhost:8081 .claude/skills/user-token/login.sh bob`, then call
+   User token: `KEYCLOAK_URL=http://localhost:8081 .agents/skills/user-token/login.sh bob`, then call
    `localhost:3001/api/*` as in the `user-token` skill (upload, conversation turn); the span tree via
    `agent-turn-check`'s `spans.py <traceId>`.
 4. Clean up: kill the :8001/:3001 processes (`lsof -nP -iTCP:8001 -iTCP:3001 -sTCP:LISTEN -t`), then

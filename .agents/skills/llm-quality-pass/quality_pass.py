@@ -1,7 +1,7 @@
 """Manual LLM quality pass: 10 golden questions through ChatPipeline against real OpenRouter models.
 
 Run from apps/ai-service:
-    .venv/bin/python ../../.claude/skills/llm-quality-pass/quality_pass.py MODEL...
+    .venv/bin/python ../../.agents/skills/llm-quality-pass/quality_pass.py MODEL...
 """
 
 import asyncio

@@ -6,7 +6,7 @@ export KEYCLOAK_URL=${KEYCLOAK_URL:-http://localhost:8081}
 T=$KEYCLOAK_URL/realms/kb/protocol/openid-connect/token
 X=urn:ietf:params:oauth:grant-type:token-exchange
 AT=urn:ietf:params:oauth:token-type:access_token
-login="$here/../user-token/login.sh"
+login="$here/../../../.agents/skills/user-token/login.sh"
 tok() { python3 -c 'import json,sys;print(json.load(sys.stdin)["access_token"])'; }
 for user in bob carol; do
   U=$("$login" "$user")

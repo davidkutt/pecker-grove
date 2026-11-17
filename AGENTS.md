@@ -49,9 +49,12 @@ Don't interrupt the task for a skill. At the end, create it and tell me in one l
 report it instead of creating it — see [Working in Pi](#working-in-pi-nest).
 
 When creating or updating a skill:
-- Path: `.claude/skills/<name>/SKILL.md` for this repo,
-  `~/.claude/skills/<name>/SKILL.md` if it applies across projects (Agent Skills format; Claude Code and
-  Cursor load both folders, Pi does not yet: the move to `.agents/skills/` is planned separately).
+- Path: `.agents/skills/<name>/SKILL.md` for this repo,
+  `~/.agents/skills/<name>/SKILL.md` if it applies across projects (Agent Skills format; Pi and Cursor load
+  both folders, Pi the project one only in a trusted project). Claude Code reads only `.claude/skills/` and
+  `~/.claude/skills/`: until the Claude Code exit on 2026-12-06, also add the symlink
+  `.claude/skills/<name>` → `../../.agents/skills/<name>` (in `~/.claude/skills/` likewise).
+  `realm-check` still lives in `.claude/skills/`.
 - The `description` is all a future session sees before loading the skill, so it decides
   whether the skill ever gets used. Lead with what it does, then "Use when…" with the words
   I'd actually type and the files/tools involved. 1–3 sentences, clearly distinct from
