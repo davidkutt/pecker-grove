@@ -17,7 +17,7 @@ self-written docs are in the corpus (D25).
 3. Run from `apps/ai-service` (takes ~3 min to ingest the corpus with `bge-m3`, then ~1 min per model):
    ```bash
    cd apps/ai-service
-   .venv/bin/python ../../.claude/skills/llm-quality-pass/quality_pass.py openai/gpt-6-luna deepseek/deepseek-v4.1-flash
+   .venv/bin/python ../../.agents/skills/llm-quality-pass/quality_pass.py openai/gpt-6-luna deepseek/deepseek-v4.1-flash
    ```
    Uses `Settings()` defaults (embedding model, top_k, threshold, `LLM_MAX_OUTPUT_TOKENS`); answers land in
    `evals/runs/quality-pass-*.json` (git-ignored).

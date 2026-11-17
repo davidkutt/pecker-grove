@@ -156,7 +156,7 @@ TOKEN=$(curl -s -d grant_type=client_credentials -d client_id=kb-api -d client_s
 curl -s localhost:8000/v1/status -H "Authorization: Bearer $TOKEN"   # {"status":"ok"} + a "status" span in Phoenix
 
 # Chat and agent turns act as a user: log in as bob (scripted PKCE login), exchange like the API does (hop 1).
-BOB=$(.claude/skills/user-token/login.sh bob)
+BOB=$(.agents/skills/user-token/login.sh bob)
 X=urn:ietf:params:oauth:grant-type:token-exchange; AT=urn:ietf:params:oauth:token-type:access_token
 USER_TOKEN=$(curl -s -d grant_type=$X -d client_id=kb-api -d client_secret=dev-only-change-me \
   -d subject_token=$BOB -d subject_token_type=$AT -d audience=kb-ai \

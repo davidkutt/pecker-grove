@@ -12,7 +12,7 @@ Seed users log in with username = password (dev only).
 1. Stack and API up: `pnpm stack:up`, then `pnpm dev api ai` (or check `curl -s localhost:3000/readyz`).
 2. Tokens (5 min lifetime; rerun when you get 401):
    ```bash
-   BOB=$(.claude/skills/user-token/login.sh bob)       # editor; alice = admin, carol = viewer
+   BOB=$(.agents/skills/user-token/login.sh bob)       # editor; alice = admin, carol = viewer
    curl -s localhost:3000/api/me -H "authorization: Bearer $BOB"
    ```
 3. Typical calls:

@@ -129,7 +129,7 @@ X=urn:ietf:params:oauth:grant-type:token-exchange; AT=urn:ietf:params:oauth:toke
 KC=http://localhost:8080/realms/kb/protocol/openid-connect/token
 mcp_token() {  # usage: mcp_token <bob|alice|carol> "<scope>"
   local user hop1
-  user=$(.claude/skills/user-token/login.sh "$1")
+  user=$(.agents/skills/user-token/login.sh "$1")
   hop1=$(curl -s -d grant_type=$X -d client_id=kb-api -d client_secret=dev-only-change-me \
     -d subject_token=$user -d subject_token_type=$AT -d audience=kb-ai $KC \
     | sed -E 's/.*"access_token":"([^"]+)".*/\1/')
