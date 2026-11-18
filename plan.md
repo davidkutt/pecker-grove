@@ -600,6 +600,9 @@ AI_SERVICE_AUDIENCE=kb-ai
 CORS_ORIGINS=http://localhost:4200
 UPLOAD_MAX_MB=20
 NOTES_DIR=                                  # absolute path of a Markdown notes folder kept in sync (M3c.1); empty = none
+NOTES_SOURCES=                              # label=folder,… (folders inside NOTES_DIR, synced as <label>:<path>); empty = NOTES_DIR itself as notes
+NOTES_EXCLUDE=                              # <label>:<path>,… folders or notes left out (e.g. ressources:unverified)
+NOTES_GIT_PULL=false                        # git pull --ff-only in each source that is a git checkout before it syncs (Mode A only)
 SOURCES_SYNC_MINUTES=15                     # notes and URL sources sync at boot and then this often; 0 = boot and admin "Sync" only
 CHAT_THROTTLE_PER_MIN=20
 

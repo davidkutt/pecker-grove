@@ -225,6 +225,9 @@ services:
       - KEYCLOAK_REALM_URL=http://keycloak:8080/realms/kb
       - AI_SERVICE_URL=http://ai-service:8000
       - NOTES_DIR=${NOTES_DIR:+/notes}
+      - NOTES_SOURCES
+      - NOTES_EXCLUDE
+      # NOTES_GIT_PULL stays off: the mount is read-only and the image has no git or credentials.
       - SOURCES_SYNC_MINUTES
     ports:
       - '127.0.0.1:3000:3000'

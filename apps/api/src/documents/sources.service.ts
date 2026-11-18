@@ -1,5 +1,8 @@
+import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { basename, join, sep } from 'node:path';
+import { promisify } from 'node:util';
 import {
   Inject,
   Injectable,
@@ -58,7 +61,7 @@ const SECRETS: Record<string, RegExp> = {
   'a JWT': /\beyJ[\w-]{10,}\.eyJ[\w-]{10,}\.[\w-]{10,}/,
 };
 
-/** Keeps the documents of `NOTES_DIR` and of fetched URLs in step with their sources (M3c.1). */
+/** Keeps the documents of the notes folders and fetched URLs in step with their sources (M3c.1). */
 @Injectable()
 export class SourcesService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(SourcesService.name);
@@ -125,14 +128,20 @@ export class SourcesService implements OnApplicationBootstrap, OnModuleDestroy {
       }
     };
 
-    const dir = this.config.NOTES_DIR;
-    const skip = (error: unknown) =>
-      result.skipped.push({ source: 'notes:', reason: reason(error) });
-    const paths = dir ? await notes(dir).catch((error: unknown) => void skip(error)) : undefined;
-    if (paths) {
-      for (const path of paths) await put(`notes:${path}`, NOTES, () => note(dir, path));
-      const seen = new Set(paths.map((path) => `notes:${path}`));
-      const gone = rows.filter((doc) => doc.source!.startsWith('notes:') && !seen.has(doc.source!));
+    const exclude = this.config.NOTES_EXCLUDE;
+    const included = (source: string) =>
+      !exclude.some((x) => source === x || source.startsWith(`${x}/`));
+    for (const { label, dir } of folders(this.config)) {
+      const prefix = `${label}:`;
+      const skip = (error: unknown) =>
+        result.skipped.push({ source: prefix, reason: reason(error) });
+      if (this.config.NOTES_GIT_PULL && existsSync(join(dir, '.git'))) await pull(dir).catch(skip);
+      const found = await notes(dir).catch((error: unknown) => void skip(error));
+      if (!found) continue;
+      const paths = found.filter((path) => included(prefix + path));
+      for (const path of paths) await put(prefix + path, NOTES, () => note(dir, path));
+      const seen = new Set(paths.map((path) => prefix + path));
+      const gone = rows.filter((doc) => doc.source!.startsWith(prefix) && !seen.has(doc.source!));
       if (!paths.length && gone.length) {
         // An unmounted or emptied folder must not wipe the knowledge base.
         skip(`${dir} has no notes; its ${gone.length} indexed ones stay`);
@@ -142,7 +151,7 @@ export class SourcesService implements OnApplicationBootstrap, OnModuleDestroy {
     }
 
     const due = Date.now() - URL_REFRESH_MS;
-    for (const doc of rows.filter((row) => !row.source!.startsWith('notes:'))) {
+    for (const doc of rows.filter((row) => /^https?:\/\//.test(row.source!))) {
       if (doc.updatedAt.getTime() > due) continue;
       await put(doc.source!, { sub: doc.ownerId, name: doc.ownerName }, async () => ({
         file: await this.documents.fetch(doc.source!),
@@ -164,6 +173,24 @@ export class SourcesService implements OnApplicationBootstrap, OnModuleDestroy {
 }
 
 const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+function folders({ NOTES_DIR, NOTES_SOURCES }: Config): { label: string; dir: string }[] {
+  if (!NOTES_SOURCES.length) return NOTES_DIR ? [{ label: 'notes', dir: NOTES_DIR }] : [];
+  return NOTES_SOURCES.map((pair) => {
+    const [label, folder] = pair.split('=');
+    return { label, dir: join(NOTES_DIR, folder) };
+  });
+}
+
+/** Unattended: no prompt for credentials, no repository hooks, and a time limit. */
+async function pull(dir: string): Promise<void> {
+  const args = ['-C', dir, '-c', 'core.hooksPath=/dev/null', 'pull', '--ff-only', '--quiet'];
+  const env = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+  await promisify(execFile)('git', args, { env, timeout: 60_000 }).catch((error: unknown) => {
+    const stderr = (error as { stderr?: string }).stderr?.trim();
+    throw new Error(`git pull: ${stderr || reason(error)}`);
+  });
+}
 
 /** `*.md` below `dir` as POSIX paths, without hidden files and folders (`.obsidian`, `.git`). */
 async function notes(dir: string): Promise<string[]> {
