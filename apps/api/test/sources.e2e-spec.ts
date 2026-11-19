@@ -91,7 +91,7 @@ describe('Sources: notes folder and URLs (e2e)', () => {
     ]);
     expect(await row('notes:a.md')).toMatchObject({
       ownerId: 'notes',
-      filename: 'a.md',
+      filename: 'notes:a.md',
       domains: ['sre'],
       topics: ['sre/incidents'],
     });

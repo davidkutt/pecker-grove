@@ -216,8 +216,9 @@ Set `NOTES_DIR` in `.env` to the absolute path of a Markdown folder, then restar
 `SOURCES_SYNC_MINUTES` (15; `0` = off) and when an admin presses *Sync notes and URLs* on the documents page
 (`POST /api/admin/sources/sync`, which returns what was added, updated, deleted and skipped):
 
-- Every `*.md` below the folder is a document owned by *Notes folder*; hidden folders (`.obsidian`, `.git`)
-  are skipped. A changed note becomes a new version of the same document (labels, priority and lifecycle
+- Every `*.md` below the folder is a document owned by *Notes folder*, named by its source
+  (`notes:devops/x.md`, also in citations); hidden folders (`.obsidian`, `.git`) are skipped. Notes indexed
+  before 2026-11-19 keep their bare file name until their content changes. A changed note becomes a new version of the same document (labels, priority and lifecycle
   stay), a deleted one leaves the knowledge base. A folder that suddenly has no notes deletes nothing.
 - Domains: frontmatter `domains:` (and `topics:` as `domain/topic` ids), else a top folder named after a
   domain (`devops/…`), else `dev`.
