@@ -74,6 +74,25 @@ def test_streams_tokens_then_usage_with_openrouter_cost() -> None:
     assert not {"tools", "provider", "session_id"} & requests[0].keys()
 
 
+def test_reports_usage_once_when_the_provider_repeats_it_in_every_chunk() -> None:
+    def handler(_: httpx2.Request) -> httpx2.Response:
+        body = (
+            chunk(
+                choices=[{"index": 0, "delta": {"content": "A"}}],
+                usage={"prompt_tokens": 50, "completion_tokens": 1},
+            )
+            + chunk(
+                choices=[{"index": 0, "delta": {"content": "B"}}],
+                usage={"prompt_tokens": 50, "completion_tokens": 2},
+            )
+            + chunk(choices=[], usage={"prompt_tokens": 50, "completion_tokens": 2, "cost": 1e-5})
+            + "data: [DONE]\n\n"
+        )
+        return httpx2.Response(200, headers={"content-type": "text/event-stream"}, text=body)
+
+    assert stream(handler) == [Token("A"), Token("B"), Usage(50, 2, 1e-5, "test/model")]
+
+
 def test_assembles_streamed_parallel_tool_calls_and_cached_tokens() -> None:
     requests: list[Any] = []
 
