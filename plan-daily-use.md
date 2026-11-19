@@ -117,6 +117,8 @@ Sizes at the current pace: S < half a day, M ≈ 1 day, L ≈ 2–3 days.
   accuracy, one `architecture` route lost its confidence. `routing_v1` showed no difference
 - [x] Added 2026-11-19: synced notes are named by their source (`<label>:<path>`) instead of the bare file
   name, so citations tell twelve `README.md` apart and show which folder a note came from
+- [x] Added 2026-11-19: a note's frontmatter is no longer indexed (it came back as a search hit of its own,
+  holding only title, tags and review state); notes with frontmatter are re-ingested once
 - [ ] Kickoff: look at the notes, decide on a catch-all domain (the default is `dev` until then)
 - [ ] Hand check on the daily stack (D124)
 

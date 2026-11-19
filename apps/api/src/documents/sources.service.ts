@@ -208,14 +208,16 @@ async function note(dir: string, prefix: string, path: string) {
   const text = buffer.toString('utf8');
   const secret = Object.keys(SECRETS).find((kind) => SECRETS[kind].test(text));
   if (secret) throw new Error(`Looks like it holds ${secret}; not sent to the knowledge base`);
-  const meta = FRONTMATTER.exec(text)?.[1];
-  const front = Frontmatter.safeParse((meta && load(meta)) ?? {});
+  const frontmatter = FRONTMATTER.exec(text);
+  const front = Frontmatter.safeParse((frontmatter && load(frontmatter[1])) ?? {});
   if (!front.success) throw new Error(`Frontmatter: ${z.prettifyError(front.error)}`);
   const top = path.includes('/') ? path.split('/')[0] : undefined;
   const folder = DOMAINS.find((domain) => domain === top);
+  // Indexed, the frontmatter took a search hit of its own; domains and topics are stored apart.
+  const body = frontmatter ? Buffer.from(text.slice(frontmatter[0].length)) : buffer;
   return {
     // Named by source: citations show only this, and many notes share a file name like README.md.
-    file: { originalname: prefix + path, buffer, size: buffer.length },
+    file: { originalname: prefix + path, buffer: body, size: body.length },
     domains: front.data.domains ?? (folder ? [folder] : DEFAULT_DOMAINS),
     topics: front.data.topics ?? [],
   };
