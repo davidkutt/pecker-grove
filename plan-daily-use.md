@@ -111,6 +111,10 @@ Sizes at the current pace: S < half a day, M ≈ 1 day, L ≈ 2–3 days.
   ids Grove rejected; no new domain, since search filters stay at domain level and `security` covers them
 - [x] Added 2026-11-19: `routing_v2` (v1 plus 12 AI-security, MCP and bug-bounty questions) as the
   routing eval default, so the `security` description change can be measured
+- [x] Measured 2026-11-19 (embedding router, bge-m3, `routing_v2`): naming AI security, bug bounty and web
+  vulnerabilities in the `security` description raised `security` accuracy from 0.22 to 0.44 (new items
+  2 → 6 of 12) and confident & wrong from 0.17 to 0.00 (overall 0.04 → 0.00); every other domain kept its
+  accuracy, one `architecture` route lost its confidence. `routing_v1` showed no difference
 - [x] Added 2026-11-19: synced notes are named by their source (`<label>:<path>`) instead of the bare file
   name, so citations tell twelve `README.md` apart and show which folder a note came from
 - [ ] Kickoff: look at the notes, decide on a catch-all domain (the default is `dev` until then)
