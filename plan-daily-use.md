@@ -103,6 +103,9 @@ Sizes at the current pace: S < half a day, M ≈ 1 day, L ≈ 2–3 days.
   the source path shows under the file name
 - [x] HTML, secret guard, persona (`rag-system@3`, `agent-system@4`), Mode B mount, docs; tests (API e2e
   `test/sources.e2e-spec.ts`, AI service HTML and label tests)
+- [x] Added 2026-11-18: several labelled folders inside `NOTES_DIR` (`NOTES_SOURCES`, sources
+  `<label>:<path>`), `NOTES_EXCLUDE`, and `NOTES_GIT_PULL` (`git pull --ff-only` before a folder syncs,
+  Mode A only), so a second notes repository syncs next to the first with its unreviewed folder left out
 - [ ] Kickoff: look at the notes, decide on a catch-all domain (the default is `dev` until then)
 - [ ] Hand check on the daily stack (D124)
 

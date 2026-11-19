@@ -1,10 +1,14 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import type { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
+import { ConfigModule } from '../src/config.js';
 import { DB, type Db } from '../src/db/db.module.js';
 import { documents } from '../src/db/schema.js';
 import { SourcesService, SyncResult } from '../src/documents/sources.service.js';
@@ -179,5 +183,104 @@ describe('Sources: notes folder and URLs (e2e)', () => {
 
   it('only admins sync', async () => {
     expect((await post(EDITOR)).status).toBe(403);
+  });
+});
+
+describe('Sources: labelled folders, excludes and git pull (e2e)', () => {
+  let app: INestApplication<App>;
+  let root: string;
+  let lastJob = 0;
+  const ai = {
+    submit: vi.fn(async (_form: FormData) => ({ job_id: ++lastJob, version: lastJob })),
+    job: vi.fn(async (id: string) => ({
+      id: Number(id),
+      state: 'ready',
+      result: { doc_id: '', chunk_count: 1, page_count: null, embedding_model: 'test-model' },
+    })),
+    deleteDocument: vi.fn(async () => undefined),
+  };
+  const git = (dir: string, ...args: string[]) =>
+    promisify(execFile)('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+      cwd: join(root, dir),
+    });
+  const write = async (path: string, text: string) => {
+    await mkdir(join(root, path, '..'), { recursive: true });
+    await writeFile(join(root, path), text);
+  };
+  const push = async (message: string) => {
+    await git('writer', 'add', '-A');
+    await git('writer', 'commit', '-qm', message);
+    await git('writer', 'push', '-q', 'origin', 'HEAD:main');
+  };
+  const sync = () => app.get(SourcesService).sync();
+
+  beforeAll(async () => {
+    root = await mkdtemp(join(tmpdir(), 'sources-'));
+    await git('.', 'init', '-q', '--bare', '-b', 'main', 'origin.git');
+    await git('.', 'clone', '-q', 'origin.git', 'writer');
+    await write('writer/a.md', '# A\nVerified.');
+    await write('writer/unverified/b.md', '# B\nNot reviewed yet.');
+    await push('first notes');
+    await git('.', 'clone', '-q', 'origin.git', 'ressources');
+    await write('notes/n.md', '# N\nOwn note.');
+    vi.stubEnv('NOTES_DIR', root);
+    vi.stubEnv('NOTES_SOURCES', 'notes=notes, ressources=ressources');
+    vi.stubEnv('NOTES_EXCLUDE', 'ressources:unverified/');
+    vi.stubEnv('NOTES_GIT_PULL', 'true');
+    vi.stubEnv('SOURCES_SYNC_MINUTES', '0');
+    app = await createApp(ai);
+  });
+
+  afterAll(async () => {
+    await app.close();
+    vi.unstubAllEnvs();
+    await rm(root, { recursive: true });
+  });
+
+  it('syncs each folder under its label and leaves excluded paths out', async () => {
+    const result = await sync();
+
+    expect(result).toMatchObject({ deleted: [], skipped: [] });
+    expect(result.added.sort()).toEqual(['notes:n.md', 'ressources:a.md']);
+  });
+
+  it('pulls before the sync; a note moved into an excluded folder leaves', async () => {
+    await write('writer/c.md', '# C\nNew upstream.');
+    await rename(join(root, 'writer/a.md'), join(root, 'writer/unverified/a.md'));
+    await push('add c, demote a');
+
+    const result = await sync();
+
+    expect(result).toMatchObject({ added: ['ressources:c.md'], deleted: ['ressources:a.md'] });
+    expect(ai.deleteDocument).toHaveBeenCalledOnce();
+  });
+
+  it('reports a failed pull and still syncs the folder from disk', async () => {
+    await git('ressources', 'remote', 'set-url', 'origin', join(root, 'gone.git'));
+
+    const result = await sync();
+
+    expect(result).toMatchObject({ added: [], deleted: [], unchanged: 2 });
+    expect(result.skipped).toEqual([
+      { source: 'ressources:', reason: expect.stringMatching(/^git pull: /) },
+    ]);
+  });
+});
+
+describe('Sources config', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  const config = () => Test.createTestingModule({ imports: [ConfigModule] }).compile();
+
+  it.each([
+    ['notes=a,notes=b', '/n', 'labels must be unique'],
+    ['notes=a', '', 'needs NOTES_DIR'],
+    ['https=a', '/n', 'other than http/https'],
+    ['notes=../a', '/n', 'a folder inside NOTES_DIR'],
+  ])('refuses NOTES_SOURCES=%s (NOTES_DIR=%s)', async (sources, dir, message) => {
+    vi.stubEnv('NOTES_DIR', dir);
+    vi.stubEnv('NOTES_SOURCES', sources);
+
+    await expect(config()).rejects.toThrow(message);
   });
 });

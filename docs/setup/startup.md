@@ -232,6 +232,31 @@ Set `NOTES_DIR` in `.env` to the absolute path of a Markdown folder, then restar
 To try it without your own notes, point `NOTES_DIR` at `data/sample-notes/` in this repo (seven short notes
 that cover frontmatter, a domain-named folder and the `dev` default).
 
+#### Several folders, excludes and `git pull`
+
+To sync more than one folder, put them side by side in one parent folder, point `NOTES_DIR` at the parent and
+give each folder a label. Mode B mounts only `NOTES_DIR`, so keep the parent to the folders you sync rather
+than, say, your whole code folder.
+
+```dotenv
+NOTES_DIR=/path/to/grove-sources            # holds notes/ and ressources/
+NOTES_SOURCES=notes=notes,ressources=ressources
+NOTES_EXCLUDE=ressources:unverified         # folders or single notes, comma-separated
+NOTES_GIT_PULL=true                         # Mode A only
+```
+
+- Each note's source is `<label>:<relative path>` (`ressources:taxonomy/x.md`), shown under the file name on
+  the documents page. Without `NOTES_SOURCES`, `NOTES_DIR` itself is the one folder, labelled `notes`.
+- Keep the label `notes` for the folder `NOTES_DIR` pointed at so far: its notes then stay as they are. A
+  label you remove or rename is no longer synced, and its documents stay; the same notes under a new label are
+  skipped as duplicates until you delete the old ones.
+- An excluded path is not indexed, and a note that was indexed before leaves the knowledge base at the next
+  sync (moving a note into `unverified/` takes it out, moving it back adds it again).
+- `NOTES_GIT_PULL=true` runs `git pull --ff-only` in each folder that has its own `.git`, before that folder
+  syncs, with your git credentials, without prompts or repository hooks and with a 60-second limit. A failed
+  pull is listed under skipped as `<label>:` and the folder syncs from what is on disk. Mode B ignores it:
+  the mount is read-only and the image has no git.
+
 #### Switching the notes folder
 
 Notes are matched by their path relative to the folder (`notes:devops/x.md`), not by the folder. So at the
