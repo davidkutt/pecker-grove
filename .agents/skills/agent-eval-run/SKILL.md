@@ -49,7 +49,7 @@ for a in r['attempts']:
 - **Provider flake**: `stopped with an error: Stream ended before a terminal response event` is OpenRouter
   cutting the stream (not in local code); note it, do not re-run for it.
 - Embedding-router threshold curve without a new run: read `items[].confidence/correct` from the
-  `*__routing_v1.json`.
+  `*__routing_v2.json` (`*__routing_v1.json` for runs before 2026-11-19).
 
 ## 4. Record
 
