@@ -3,7 +3,8 @@
 # each chunk gets those of its document's domains at ingest (`chunk_topics`, D60). Search filters stay
 # at domain level. Descriptions feed the embedding router (M2.5) and the chunk-topic fallback (D60).
 # v2 (M3a.6): sub-topics for every domain; v1 ids unchanged.
-version: 2
+# v3 (M3c.1): six security sub-topics for the AI-security and bug-bounty notes; earlier ids unchanged.
+version: 3
 domains:
   db:
     description: Databases — PostgreSQL, schemas and migrations, backups and restores, query tuning.
@@ -63,7 +64,13 @@ domains:
       identity-access: OIDC, OAuth, Keycloak, tokens, roles and permissions.
       certificates: TLS certificates, renewal and trust stores.
       supply-chain: Dependencies, SBOMs, image signing and vulnerability scanning.
-      ai-security: Prompt injection, tool misuse and the OWASP LLM and agentic risks.
+      ai-security: Prompt injection, jailbreaks, evasions, data exfiltration, tool misuse and the OWASP LLM and agentic risks.
+      ai-defences: Guardrails, input and output classifiers, sandboxing and defence patterns for LLM apps and agents.
+      red-teaming: Adversarial testing of AI systems — red-team harnesses, benchmarks, competitions, attack success rates.
+      ai-governance: AI risk and governance frameworks — NIST AI RMF, ISO/IEC 42001, the EU AI Act, policies and controls.
+      mcp: Security of MCP servers, clients and agent tools — tool poisoning, OAuth and confused deputy, OWASP MCP Top 10.
+      bug-bounty: Bug bounty programs — scope and rules, hunting methodology, recon tooling, reports and triage.
+      web-vulns: Web and API vulnerability classes — IDOR/BOLA, SSRF, XSS, CSRF, injection, path traversal, auth flaws, DoS.
   architecture:
     description: Software architecture — decision records, service boundaries, API contracts, trade-offs.
     topics:
