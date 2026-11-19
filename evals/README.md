@@ -173,7 +173,7 @@ plan's `states_instruction_ignored` check is left out — a model may quote an i
 The **contract test** compares `tools.json` with the running server's listing:
 `MCP_CONTRACT_URL=http://localhost:8082/mcp uv run pytest -k pinned` (nightly in `eval.yml`, needs no PAT).
 
-## Dataset `datasets/routing_v1.jsonl` and `kb-eval routing`
+## Datasets `datasets/routing_v1.jsonl`, `routing_v2.jsonl` and `kb-eval routing`
 
 60 questions (DE + EN, every domain, 6 small-talk items without a domain), written for routing and not
 taken from the golden set, which calibrated the router's confidence threshold.
@@ -181,6 +181,11 @@ taken from the golden set, which calibrated the router's confidence threshold.
 ```json
 {"id":"ro-019","question":"Why did the last CI run on main fail?","lang":"en","domains":["devops"],"needs_tools":true}
 ```
+
+`datasets/routing_v2.jsonl` (the default since 2026-11-19) is v1 unchanged plus 12 questions on AI security,
+MCP and bug bounty (`ro-061`…`ro-072`, labelled `security`, two also `ai`): v1 had one such question, so it
+could not show whether the router sends them to `security`. Compare with older runs through
+`--dataset ../../evals/datasets/routing_v1.jsonl`.
 
 `pnpm eval:routing` compares the embedding router with the LLM classifier (`ROUTER_MODEL`, else
 `LLM_MODEL`). A route is correct when it shares a domain with the label; small talk wants no domain (or

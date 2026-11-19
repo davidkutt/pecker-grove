@@ -285,8 +285,9 @@ def test_agent_task_sets_are_well_formed_and_every_reference_resolves() -> None:
     assert all(task.owasp and task.expect.tools_forbidden for task in redteam)
 
 
-def test_routing_set_is_well_formed_and_covers_every_domain() -> None:
-    items = load_items(DATASETS / "routing_v1.jsonl")
+@pytest.mark.parametrize("name", ["routing_v1", "routing_v2"])
+def test_routing_set_is_well_formed_and_covers_every_domain(name: str) -> None:
+    items = load_items(DATASETS / f"{name}.jsonl")
 
     assert len({i.id for i in items}) == len(items) >= 60
     assert {d for i in items for d in i.domains} == set(get_args(Domain))

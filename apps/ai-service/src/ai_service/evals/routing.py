@@ -1,4 +1,4 @@
-"""`kb-eval routing`: router accuracy on `routing_v1` (D33), embedding vs LLM (ADR-0012)."""
+"""`kb-eval routing`: router accuracy on `routing_v2` (D33), embedding vs LLM (ADR-0012)."""
 
 import argparse
 import asyncio
@@ -142,7 +142,7 @@ def to_markdown(reports: list[RoutingReport]) -> str:
 
 def add_command(commands: Any, settings: Settings) -> None:
     cmd = commands.add_parser("routing", help="router accuracy: embedding vs LLM classifier")
-    cmd.add_argument("--dataset", type=Path, default=Path("../../evals/datasets/routing_v1.jsonl"))
+    cmd.add_argument("--dataset", type=Path, default=Path("../../evals/datasets/routing_v2.jsonl"))
     cmd.add_argument("--out", type=Path, default=Path("../../evals/runs"))
     cmd.add_argument(
         "--router",

@@ -109,6 +109,8 @@ Sizes at the current pace: S < half a day, M ≈ 1 day, L ≈ 2–3 days.
 - [x] Added 2026-11-19: taxonomy v3, six `security/` sub-topics (`ai-defences`, `red-teaming`,
   `ai-governance`, `mcp`, `bug-bounty`, `web-vulns`) for the AI-security notes, whose three-level topic
   ids Grove rejected; no new domain, since search filters stay at domain level and `security` covers them
+- [x] Added 2026-11-19: `routing_v2` (v1 plus 12 AI-security, MCP and bug-bounty questions) as the
+  routing eval default, so the `security` description change can be measured
 - [x] Added 2026-11-19: synced notes are named by their source (`<label>:<path>`) instead of the bare file
   name, so citations tell twelve `README.md` apart and show which folder a note came from
 - [ ] Kickoff: look at the notes, decide on a catch-all domain (the default is `dev` until then)
