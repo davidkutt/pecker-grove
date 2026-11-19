@@ -58,7 +58,7 @@ domains:
       evals: Golden sets, retrieval and answer metrics, LLM judges.
       observability: Traces of LLM calls and agent runs, token usage and costs per request.
   security:
-    description: Security — secrets, authentication and authorization, certificates, supply chain.
+    description: Security — secrets, authentication and authorization, certificates, supply chain, AI security (prompt injection, MCP, red teaming), bug bounty and web vulnerabilities.
     topics:
       secrets: Secret storage, rotation and leak response.
       identity-access: OIDC, OAuth, Keycloak, tokens, roles and permissions.
