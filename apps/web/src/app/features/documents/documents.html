@@ -83,7 +83,7 @@
           <tr>
             <td>
               {{ doc.filename }}
-              @if (doc.source) {
+              @if (doc.source && doc.source !== doc.filename) {
                 <div class="small text-body-secondary text-break">{{ doc.source }}</div>
               }
               @if (doc.error) {

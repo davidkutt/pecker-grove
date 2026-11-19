@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
-import { basename, join, sep } from 'node:path';
+import { join, sep } from 'node:path';
 import { promisify } from 'node:util';
 import {
   Inject,
@@ -139,7 +139,7 @@ export class SourcesService implements OnApplicationBootstrap, OnModuleDestroy {
       const found = await notes(dir).catch((error: unknown) => void skip(error));
       if (!found) continue;
       const paths = found.filter((path) => included(prefix + path));
-      for (const path of paths) await put(prefix + path, NOTES, () => note(dir, path));
+      for (const path of paths) await put(prefix + path, NOTES, () => note(dir, prefix, path));
       const seen = new Set(paths.map((path) => prefix + path));
       const gone = rows.filter((doc) => doc.source!.startsWith(prefix) && !seen.has(doc.source!));
       if (!paths.length && gone.length) {
@@ -203,7 +203,7 @@ async function notes(dir: string): Promise<string[]> {
 }
 
 /** Domains from the frontmatter, else a top folder named after a domain, else the default. */
-async function note(dir: string, path: string) {
+async function note(dir: string, prefix: string, path: string) {
   const buffer = await readFile(join(dir, path));
   const text = buffer.toString('utf8');
   const secret = Object.keys(SECRETS).find((kind) => SECRETS[kind].test(text));
@@ -214,7 +214,8 @@ async function note(dir: string, path: string) {
   const top = path.includes('/') ? path.split('/')[0] : undefined;
   const folder = DOMAINS.find((domain) => domain === top);
   return {
-    file: { originalname: basename(path), buffer, size: buffer.length },
+    // Named by source: citations show only this, and many notes share a file name like README.md.
+    file: { originalname: prefix + path, buffer, size: buffer.length },
     domains: front.data.domains ?? (folder ? [folder] : DEFAULT_DOMAINS),
     topics: front.data.topics ?? [],
   };
