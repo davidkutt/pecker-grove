@@ -221,7 +221,8 @@ Set `NOTES_DIR` in `.env` to the absolute path of a Markdown folder, then restar
   before 2026-11-19 keep their bare file name until their content changes. A changed note becomes a new version of the same document (labels, priority and lifecycle
   stay), a deleted one leaves the knowledge base. A folder that suddenly has no notes deletes nothing.
 - Domains: frontmatter `domains:` (and `topics:` as `domain/topic` ids), else a top folder named after a
-  domain (`devops/…`), else `dev`.
+  domain (`devops/…`), else `dev`. The frontmatter itself is not indexed, only the text below it. Notes with
+  frontmatter indexed before 2026-11-19 are ingested again once at the next sync (≈ 0.002 USD each).
 - A note that looks like it holds a secret (private key, `sk-…` key, GitHub, AWS, Slack or Google key, a JWT)
   is skipped with that reason, so it never reaches OpenRouter or Phoenix. Remove the secret to index it.
 - Documents added with `kb.ingest_url` are re-fetched when their row is a day old; new content is a new

@@ -98,6 +98,8 @@ describe('Sources: notes folder and URLs (e2e)', () => {
     expect((await row('notes:devops/deploy.md')).domains).toEqual(['devops']);
     expect((await row('notes:misc/idea.md')).domains).toEqual(['dev']);
     await Promise.all(result.added.map(handedOver));
+    const sent = ai.submit.mock.calls.map(([form]) => form.get('file') as File);
+    expect(await sent.find((file) => file.name === 'notes:a.md')!.text()).toBe('# Pager\nAck it.');
   });
 
   it('a changed note is a new version of the same document; unchanged ones stay', async () => {
