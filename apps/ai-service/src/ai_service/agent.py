@@ -459,8 +459,9 @@ class Agent:
                 }
             )
             logger.info(
-                "agent stop=%s steps=%d tool_calls=%d input_tokens=%d cost_usd=%s",
+                "agent stop=%s limit=%s steps=%d tool_calls=%d input_tokens=%d cost_usd=%s",
                 stop,
+                limit,
                 usage.steps,
                 usage.tool_calls,
                 usage.input_tokens,

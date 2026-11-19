@@ -98,6 +98,7 @@ class OpenAICompatProvider:
         if session_id:
             extra["session_id"] = session_id  # OpenRouter sticky routing → prompt-cache hits
         calls: dict[int, dict[str, str]] = {}
+        usage: tuple[CompletionUsage, str] | None = None
         try:
             stream = await self._client.chat.completions.create(
                 model=model or self._model,
@@ -122,10 +123,14 @@ class OpenAICompatProvider:
                             call["name"] = call["name"] or part.function.name or ""
                             call["arguments"] += part.function.arguments or ""
                     if chunk.usage:
-                        yield _usage(chunk.usage, chunk.model)
+                        # Some providers repeat the running total in many chunks; summed, it tripped
+                        # the agent's token budget. The last one is the turn's total.
+                        usage = (chunk.usage, chunk.model)
         except openai.APIError as error:
             yield LlmError(str(error))
             return
+        if usage:
+            yield _usage(*usage)
         for index, call in sorted(calls.items()):
             yield ToolCall(call["id"] or f"call_{index}", call["name"], call["arguments"])
 
