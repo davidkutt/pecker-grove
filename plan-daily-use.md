@@ -106,6 +106,9 @@ Sizes at the current pace: S < half a day, M ≈ 1 day, L ≈ 2–3 days.
 - [x] Added 2026-11-18: several labelled folders inside `NOTES_DIR` (`NOTES_SOURCES`, sources
   `<label>:<path>`), `NOTES_EXCLUDE`, and `NOTES_GIT_PULL` (`git pull --ff-only` before a folder syncs,
   Mode A only), so a second notes repository syncs next to the first with its unreviewed folder left out
+- [x] Added 2026-11-19: taxonomy v3, six `security/` sub-topics (`ai-defences`, `red-teaming`,
+  `ai-governance`, `mcp`, `bug-bounty`, `web-vulns`) for the AI-security notes, whose three-level topic
+  ids Grove rejected; no new domain, since search filters stay at domain level and `security` covers them
 - [ ] Kickoff: look at the notes, decide on a catch-all domain (the default is `dev` until then)
 - [ ] Hand check on the daily stack (D124)
 
