@@ -18,6 +18,6 @@ allowBuilds:
 # Shared versions: reference them as "catalog:" in an app's package.json.
 catalog:
   '@types/node': ^24.19.2
-  prettier: ^3.9.10
+  prettier: ^3.10.1
   typescript: ~6.0.3
   vitest: ^5.1.0
