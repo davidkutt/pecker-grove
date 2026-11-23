@@ -6,7 +6,7 @@ license = "MIT"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     # PDF layout and tables without OCR/VLM extras (D59, ADR-0018).
-    "docling-slim[convert-core,feat-chunking,format-pdf,models-local]==2.150.0",
+    "docling-slim[convert-core,feat-chunking,format-pdf,models-local]==2.151.1",
     "docling-ibm-models[opencv-python-headless]",  # TableFormer imports cv2
     "fastapi>=0.143",
     "fastembed>=0.9.0",
@@ -16,7 +16,7 @@ dependencies = [
     "openinference-instrumentation-openai>=0.1.65",
     "opentelemetry-exporter-otlp-proto-grpc>=1.45.1",
     "opentelemetry-sdk>=1.45.1",
-    "procrastinate==3.11.0",
+    "procrastinate==3.12.0",
     "psycopg[binary]>=3.3.6",  # bundles libpq: the slim image has none (Mode B since M3a.1)
     "pydantic-settings>=2.15",
     "pyjwt[crypto]>=2.15.1",
