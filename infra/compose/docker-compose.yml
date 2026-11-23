@@ -27,7 +27,7 @@ services:
     restart: unless-stopped
 
   qdrant:
-    image: qdrant/qdrant:v1.20.0
+    image: qdrant/qdrant:v1.20.2
     environment:
       QDRANT__TELEMETRY_DISABLED: 'true'
     ports:
