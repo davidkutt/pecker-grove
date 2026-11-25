@@ -20,6 +20,7 @@ export type ReindexRequest = Schemas['ReindexRequest'];
 export type ReindexStatus = Schemas['ReindexStatus'];
 export type Alias = Schemas['Alias'];
 export type ServiceStatus = Schemas['ServiceStatus'];
+export type SourcesStatus = Schemas['SourcesStatus'];
 export type Domain = NonNullable<SearchRequest['domains']>[number];
 
 /**
@@ -109,6 +110,16 @@ export class AiClient {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(labels),
       signal: AbortSignal.timeout(30_000),
+    });
+  }
+
+  /** As the service account: the AI service refuses exchanged user tokens here (D127). */
+  async putSourcesStatus(status: SourcesStatus, requestId: string): Promise<void> {
+    await this.request('/v1/sources/status', requestId, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(status),
+      signal: AbortSignal.timeout(10_000),
     });
   }
 

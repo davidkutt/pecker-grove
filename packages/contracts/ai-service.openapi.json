@@ -596,6 +596,46 @@
         ]
       }
     },
+    "/v1/sources/status": {
+      "put": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Report Status",
+        "description": "The API pushes the status after every sync; the MCP tool `index_status` returns it.",
+        "operationId": "report_status_v1_sources_status_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourcesStatus"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/": {
       "get": {
         "tags": [
@@ -1032,6 +1072,192 @@
         "title": "ExplainedHit",
         "description": "`explain` mode of `/v1/search`: the matching chunk inside the section, and the section's\nrank among the fused candidates and the chunk's in the dense and the sparse top 50 (None: not\namong them); its position is the reranked one, moved by `boost` positions (D61)."
       },
+      "Failed": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "error"
+        ],
+        "title": "Failed"
+      },
+      "FolderDocuments": {
+        "properties": {
+          "ready": {
+            "type": "integer",
+            "title": "Ready"
+          },
+          "in_progress": {
+            "type": "integer",
+            "title": "In Progress"
+          },
+          "failed": {
+            "items": {
+              "$ref": "#/components/schemas/Failed"
+            },
+            "type": "array",
+            "title": "Failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ready",
+          "in_progress",
+          "failed"
+        ],
+        "title": "FolderDocuments"
+      },
+      "FolderGit": {
+        "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "pull": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "failed",
+              "off"
+            ],
+            "title": "Pull"
+          },
+          "pull_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pull Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "commit",
+          "branch",
+          "pull"
+        ],
+        "title": "FolderGit"
+      },
+      "FolderStatus": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "git": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FolderGit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "excluded": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Excluded"
+          },
+          "notes": {
+            "type": "integer",
+            "title": "Notes"
+          },
+          "added": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Added"
+          },
+          "updated": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Updated"
+          },
+          "deleted": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deleted"
+          },
+          "unchanged": {
+            "type": "integer",
+            "title": "Unchanged"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/Skipped-Input"
+            },
+            "type": "array",
+            "title": "Skipped"
+          },
+          "documents": {
+            "$ref": "#/components/schemas/FolderDocuments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "git",
+          "excluded",
+          "notes",
+          "added",
+          "updated",
+          "deleted",
+          "unchanged",
+          "skipped",
+          "documents"
+        ],
+        "title": "FolderStatus"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1334,7 +1560,7 @@
           },
           "skipped": {
             "items": {
-              "$ref": "#/components/schemas/Skipped"
+              "$ref": "#/components/schemas/Skipped-Output"
             },
             "type": "array",
             "title": "Skipped"
@@ -1711,7 +1937,25 @@
         ],
         "title": "ServiceStatus"
       },
-      "Skipped": {
+      "Skipped-Input": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "reason"
+        ],
+        "title": "Skipped"
+      },
+      "Skipped-Output": {
         "properties": {
           "doc_id": {
             "type": "string",
@@ -1734,6 +1978,55 @@
           "reason"
         ],
         "title": "Skipped"
+      },
+      "SourcesStatus": {
+        "properties": {
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Finished At"
+          },
+          "interval_minutes": {
+            "type": "number",
+            "title": "Interval Minutes"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "folders": {
+            "items": {
+              "$ref": "#/components/schemas/FolderStatus"
+            },
+            "type": "array",
+            "title": "Folders"
+          },
+          "urls": {
+            "$ref": "#/components/schemas/UrlsStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "started_at",
+          "finished_at",
+          "interval_minutes",
+          "folders",
+          "urls"
+        ],
+        "title": "SourcesStatus",
+        "description": "The API's last notes and URL sync (D127)."
       },
       "Submitted": {
         "properties": {
@@ -1855,6 +2148,30 @@
           "available"
         ],
         "title": "ToolInfo"
+      },
+      "UrlsStatus": {
+        "properties": {
+          "refreshed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Refreshed"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/Skipped-Input"
+            },
+            "type": "array",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "refreshed",
+          "skipped"
+        ],
+        "title": "UrlsStatus"
       },
       "ValidationError": {
         "properties": {

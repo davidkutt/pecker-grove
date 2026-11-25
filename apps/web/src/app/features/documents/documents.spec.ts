@@ -38,6 +38,20 @@ const TAXONOMY = {
   },
 };
 
+const STATUS_URL = 'http://api/api/admin/sources/status';
+const folder = {
+  label: 'ressources',
+  git: { commit: 'a1b2c3d'.padEnd(40, '0'), branch: 'main', pull: 'ok' },
+  excluded: ['unverified'],
+  notes: 5,
+  added: ['notes:ops/a.md'],
+  updated: [],
+  deleted: [],
+  unchanged: 4,
+  skipped: [{ source: 'ressources:keys.md', reason: 'Looks like it holds a JWT' }],
+  documents: { ready: 4, in_progress: 0, failed: [] },
+};
+
 describe('Documents', () => {
   let http: HttpTestingController;
   let fixture: ComponentFixture<Documents>;
@@ -64,6 +78,7 @@ describe('Documents', () => {
     http = TestBed.inject(HttpTestingController);
     http.expectOne('http://api/api/taxonomy').flush(TAXONOMY);
     http.expectOne('http://api/api/documents').flush(docs);
+    for (const status of http.match(STATUS_URL)) status.flush(null); // admins only
     await fixture.whenStable();
     return fixture.nativeElement as HTMLElement;
   }
@@ -105,11 +120,25 @@ describe('Documents', () => {
       skipped: [{ source: 'notes:keys.md', reason: 'Looks like it holds a JWT' }],
     });
     (await vi.waitFor(() => http.expectOne('http://api/api/documents'))).flush([note]);
+    http.expectOne(STATUS_URL).flush({
+      started_at: '2026-11-25T14:20:00Z',
+      finished_at: '2026-11-25T14:20:02Z',
+      interval_minutes: 15,
+      folders: [folder, { ...folder, label: 'notes', git: null, skipped: [] }],
+      urls: { refreshed: [], skipped: [] },
+    });
     await fixture.whenStable();
 
     expect(page.querySelector('[aria-live=polite]')!.textContent).toMatch(
       /1 added, 0 updated,\s+0 deleted, 4 unchanged/,
     );
+    const lines = Array.from(page.querySelectorAll('[aria-label="Notes folders"] summary'));
+    expect(lines.map((line) => line.textContent!.replace(/\s+/g, ' ').trim())).toEqual([
+      expect.stringMatching(
+        /^ressources · a1b2c3d \(main\) · pull ok · synced \d\d:\d\d · 1 skipped · 0 failed$/,
+      ),
+      expect.stringMatching(/^notes · no git checkout · synced \d\d:\d\d · 0 skipped · 0 failed$/),
+    ]);
     expect(page.querySelector('.alert-warning')!.textContent).toContain(
       'notes:keys.md: Looks like it holds a JWT',
     );

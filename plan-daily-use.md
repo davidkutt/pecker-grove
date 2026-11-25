@@ -45,6 +45,7 @@ IDs continue after the parked plans (D76–D120), so nothing clashes.
 | D124 | **Done** means the milestone's hand check ran on the daily stack, not only in tests or on a throwaway stack |
 | D125 | **Seed-user ids are pinned in `realm-kb.json`.** A realm change then means recreating only Keycloak's database; owners of documents and conversations survive |
 | D126 | **Retrieval quality is measured on your notes** (`notes_v1`, built from feedback, kept out of git). The demo golden set stays as CI's engine regression test |
+| D127 | **Sources status:** after every notes sync the API pushes what it read and indexed to the AI service (`PUT /v1/sources/status` as its service account), and the `kb:read` MCP tool `index_status` returns the last push. In memory on both sides, no migration. The commit is read from `.git` files, not with the `git` binary (Mode B has none). Grove doesn't check uncommitted changes or the remote (pecker-nest's `doctor.sh` does). No realm change, no new client role, no new logins: Keycloak 26.8 gives the service-account token and an exchanged user token the same `aud` and `azp`, so the AI service admits only `preferred_username = service-account-kb-api` |
 
 ---
 
@@ -119,8 +120,16 @@ Sizes at the current pace: S < half a day, M ≈ 1 day, L ≈ 2–3 days.
   name, so citations tell twelve `README.md` apart and show which folder a note came from
 - [x] Added 2026-11-19: a note's frontmatter is no longer indexed (it came back as a search hit of its own,
   holding only title, tags and review state); notes with frontmatter are re-ingested once
+- [x] Added 2026-11-25: sources status (D127). After every sync (boot, interval, *Sync notes and URLs*, also
+  when nothing changed or the run failed) the API records per folder the commit and branch it read, the pull
+  result, what it added, changed, deleted, excluded and skipped, and the documents still in progress or failed.
+  It pushes that to the AI service (retried every 30 s until it lands or the next sync starts); the MCP tool
+  `index_status` returns it, and the documents page shows it to admins (`GET /api/admin/sources/status`, live
+  counts)
 - [ ] Kickoff: look at the notes, decide on a catch-all domain (the default is `dev` until then)
 - [ ] Hand check on the daily stack (D124)
+- [ ] Hand check of the sources status on the daily stack: each folder's commit on the documents page matches
+  `git -C <checkout> rev-parse --short HEAD`, and `index_status` in Claude Code or Pi returns the same commit
 
 Deviations:
 - HTML is parsed with the stdlib parser `web.fetch` already used (moved to `ingest.py`, headings now emitted

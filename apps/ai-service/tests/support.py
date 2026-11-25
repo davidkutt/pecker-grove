@@ -56,12 +56,14 @@ def token(
     sub: str = "carol",
     roles: tuple[str, ...] = ("viewer",),
     scope: str = "",
+    username: str = "carol",
 ) -> str:
     now = int(time.time())
     claims = {
         "iss": Settings().ai_keycloak_issuer,
         "aud": aud,
         "sub": sub,
+        "preferred_username": username,
         "realm_access": {"roles": list(roles)},
         "scope": scope,
         "iat": now,

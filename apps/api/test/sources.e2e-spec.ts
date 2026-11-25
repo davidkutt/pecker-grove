@@ -11,7 +11,7 @@ import type { App } from 'supertest/types.js';
 import { ConfigModule } from '../src/config.js';
 import { DB, type Db } from '../src/db/db.module.js';
 import { documents } from '../src/db/schema.js';
-import { SourcesService, SyncResult } from '../src/documents/sources.service.js';
+import { SourcesService, SourcesStatus, SyncResult } from '../src/documents/sources.service.js';
 import { ADMIN, EDITOR, createApp, token } from './support.js';
 
 // Every allowed URL serves `page`, as HTML.
@@ -36,6 +36,7 @@ describe('Sources: notes folder and URLs (e2e)', () => {
       result: { doc_id: '', chunk_count: 1, page_count: null, embedding_model: 'test-model' },
     })),
     deleteDocument: vi.fn(async () => undefined),
+    putSourcesStatus: vi.fn(async (_status: SourcesStatus, _requestId: string) => undefined),
   };
 
   beforeAll(async () => {
@@ -62,6 +63,10 @@ describe('Sources: notes folder and URLs (e2e)', () => {
     expect(res.status).toBe(200);
     return SyncResult.parse(res.body);
   };
+  const status = async (roles = ADMIN) =>
+    request(app.getHttpServer())
+      .get('/api/admin/sources/status')
+      .auth(await token(roles), { type: 'bearer' });
   const note = async (path: string, text: string) => {
     await mkdir(join(dir, path, '..'), { recursive: true });
     await writeFile(join(dir, path), text);
@@ -133,6 +138,22 @@ describe('Sources: notes folder and URLs (e2e)', () => {
     expect(emptied.skipped).toEqual([
       { source: 'notes:', reason: `${dir} has no notes; its 2 indexed ones stay` },
     ]);
+    const live = SourcesStatus.parse((await status()).body);
+    expect(live.folders).toEqual([
+      {
+        label: 'notes',
+        git: null,
+        excluded: [],
+        notes: 0,
+        added: [],
+        updated: [],
+        deleted: [],
+        unchanged: 0,
+        skipped: emptied.skipped,
+        documents: { ready: 2, in_progress: 0, failed: [] },
+      },
+    ]);
+    expect(ai.putSourcesStatus.mock.lastCall![0].folders[0].skipped).toEqual(emptied.skipped);
   });
 
   it('skips a note that looks like it holds a secret or has bad frontmatter', async () => {
@@ -183,8 +204,9 @@ describe('Sources: notes folder and URLs (e2e)', () => {
     });
   });
 
-  it('only admins sync', async () => {
+  it('only admins sync and see the status', async () => {
     expect((await post(EDITOR)).status).toBe(403);
+    expect((await status(EDITOR)).status).toBe(403);
   });
 });
 
@@ -200,6 +222,7 @@ describe('Sources: labelled folders, excludes and git pull (e2e)', () => {
       result: { doc_id: '', chunk_count: 1, page_count: null, embedding_model: 'test-model' },
     })),
     deleteDocument: vi.fn(async () => undefined),
+    putSourcesStatus: vi.fn(async (_status: SourcesStatus, _requestId: string) => undefined),
   };
   const git = (dir: string, ...args: string[]) =>
     promisify(execFile)('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
@@ -239,11 +262,23 @@ describe('Sources: labelled folders, excludes and git pull (e2e)', () => {
     await rm(root, { recursive: true });
   });
 
+  const pushed = () => SourcesStatus.parse(ai.putSourcesStatus.mock.lastCall![0]);
+
   it('syncs each folder under its label and leaves excluded paths out', async () => {
     const result = await sync();
 
     expect(result).toMatchObject({ deleted: [], skipped: [] });
     expect(result.added.sort()).toEqual(['notes:n.md', 'ressources:a.md']);
+    const [notes, ressources] = pushed().folders;
+    const { stdout: head } = await git('ressources', 'rev-parse', 'HEAD');
+    expect(notes).toMatchObject({ label: 'notes', git: null, excluded: [], notes: 1 });
+    expect(ressources).toMatchObject({
+      label: 'ressources',
+      git: { commit: head.trim(), branch: 'main', pull: 'ok' },
+      excluded: ['unverified'],
+      notes: 1,
+      added: ['ressources:a.md'],
+    });
   });
 
   it('pulls before the sync; a note moved into an excluded folder leaves', async () => {
@@ -255,6 +290,8 @@ describe('Sources: labelled folders, excludes and git pull (e2e)', () => {
 
     expect(result).toMatchObject({ added: ['ressources:c.md'], deleted: ['ressources:a.md'] });
     expect(ai.deleteDocument).toHaveBeenCalledOnce();
+    const { stdout: head } = await git('writer', 'rev-parse', 'HEAD');
+    expect(pushed().folders[1].git?.commit).toBe(head.trim());
   });
 
   it('reports a failed pull and still syncs the folder from disk', async () => {
@@ -266,6 +303,10 @@ describe('Sources: labelled folders, excludes and git pull (e2e)', () => {
     expect(result.skipped).toEqual([
       { source: 'ressources:', reason: expect.stringMatching(/^git pull: /) },
     ]);
+    expect(pushed().folders[1]).toMatchObject({
+      git: { pull: 'failed', pull_error: result.skipped[0].reason },
+      skipped: [],
+    });
   });
 });
 

@@ -31,6 +31,7 @@ from qdrant_client import QdrantClient
 
 from ai_service import agent, rag, routing
 from ai_service.agent import Agent, AgentDoneEvent, ApprovalRequiredEvent, ToolCallEvent, rag_turn
+from ai_service.api.sources import unreported
 from ai_service.catalog import McpServers, load_servers, load_taxonomy
 from ai_service.core.auth import Caller
 from ai_service.core.settings import Settings
@@ -248,7 +249,7 @@ class Bench:
             self.filenames |= {doc_id(name): name for name in load_manifest(corpus)}
         self.github = GitHubFixture(fixtures)
         tokens = EvalTokens(settings)
-        own = create_mcp(settings, lambda: self.kb, tokens, lambda: transformer)
+        own = create_mcp(settings, lambda: self.kb, tokens, lambda: transformer, unreported)
         config = load_servers(settings.mcp_servers_config)["github"]
         os.environ[config.bearer_env] = FAKE_PAT  # the fixture answers; a real PAT stays unused
         servers = McpServers({"github": config})

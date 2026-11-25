@@ -8,6 +8,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from ai_service.core.settings import Settings
 
 _bearer = HTTPBearer(auto_error=False)
+# Keycloak names a client's service account so, and usernames are unique in the realm.
+API_SERVICE_ACCOUNT = "service-account-kb-api"
 
 
 @dataclass(frozen=True)
@@ -17,10 +19,12 @@ class Caller:
     sub: str
     roles: list[str]
     token: str  # the bearer itself, exchanged again for the MCP server (hop 2)
+    username: str = ""
 
     @classmethod
     def of(cls, claims: dict[str, Any], token: str) -> "Caller":
-        return cls(claims["sub"], claims.get("realm_access", {}).get("roles", []), token)
+        roles = claims.get("realm_access", {}).get("roles", [])
+        return cls(claims["sub"], roles, token, claims.get("preferred_username", ""))
 
 
 class Jwt:
@@ -78,3 +82,9 @@ def require_admin(request: Request) -> None:
     """For admin routes: the exchanged user token must carry the realm role `admin`."""
     if "admin" not in get_caller(request).roles:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admins only")
+
+
+def require_api_service(request: Request) -> None:
+    """Only the API's service account: an exchanged user token has the same `aud` and `azp`."""
+    if get_caller(request).username != API_SERVICE_ACCOUNT:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "The API's service account only")

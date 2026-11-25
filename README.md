@@ -47,7 +47,7 @@ flowchart LR
   api["NestJS API :3000<br/>conversations · approvals<br/>audit · usage caps"]
   subgraph ai["AI service :8000"]
     agent["agent loop<br/>router · limits<br/>untrusted wrapper"]
-    mcp["own MCP server /mcp<br/>kb.search · get_document<br/>list_sources · ingest_url"]
+    mcp["own MCP server /mcp<br/>kb.search · get_document<br/>list_sources · index_status<br/>ingest_url"]
   end
   ghmcp["GitHub MCP server :8082<br/>read-only · lockdown"]
   gh["GitHub API<br/>sandbox repo"]

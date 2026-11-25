@@ -94,6 +94,7 @@ export async function fakeAiService() {
       );
       return;
     }
+    if (req.url === '/v1/sources/status') return void res.writeHead(204).end(); // the boot sync's push
     upstream.received.push({
       url: req.url!,
       headers: req.headers,

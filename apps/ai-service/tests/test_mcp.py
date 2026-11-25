@@ -165,6 +165,63 @@ def test_read_tools_need_a_role(client: TestClient) -> None:
     assert "Not permitted for your role" in str(result.content)
 
 
+STATUS: dict[str, Any] = {
+    "started_at": "2026-11-25T14:20:00Z",
+    "finished_at": "2026-11-25T14:20:02Z",
+    "interval_minutes": 15,
+    "folders": [
+        {
+            "label": "ressources",
+            "git": {"commit": "a" * 40, "branch": "main", "pull": "ok"},
+            "excluded": ["unverified"],
+            "notes": 2,
+            "added": ["ressources:a.md"],
+            "updated": [],
+            "deleted": [],
+            "unchanged": 1,
+            "skipped": [{"source": "ressources:keys.md", "reason": "Looks like it holds a JWT"}],
+            "documents": {"ready": 1, "in_progress": 1, "failed": []},
+        }
+    ],
+    "urls": {"refreshed": [], "skipped": []},
+}
+# As Keycloak 26.8 issues it: same `aud` and `azp` as an exchanged user token, no realm roles.
+API_SERVICE = token(sub="742b1a72", roles=(), username="service-account-kb-api")
+
+
+@pytest.mark.parametrize(
+    ("bearer", "status"),
+    [(API_SERVICE, 204), (token(roles=("admin",)), 403)],
+    ids=["API service account", "exchanged user token"],
+)
+def test_only_the_apis_service_account_reports_the_sources_status(
+    client: TestClient, bearer: str, status: int
+) -> None:
+    response = client.put(
+        "/v1/sources/status", json=STATUS, headers={"Authorization": f"Bearer {bearer}"}
+    )
+
+    assert response.status_code == status
+    assert (cast(FastAPI, client.app).state.sources.status is not None) == (status == 204)
+
+
+def test_index_status_returns_the_last_reported_status(client: TestClient) -> None:
+    before = call(client, mcp_token(), "index_status")
+    client.put(
+        "/v1/sources/status", json=STATUS, headers={"Authorization": f"Bearer {API_SERVICE}"}
+    ).raise_for_status()
+    after = call(client, mcp_token(), "index_status")
+    refused = with_mcp(client, mcp_token(roles=()), lambda mcp: mcp.call_tool("index_status", {}))
+
+    assert (before["reported_at"], before["status"]) == (None, None)
+    assert before["note"].startswith("No sync reported since the AI service started at ")
+    assert after["reported_at"] and after["note"] is None
+    assert after["status"]["folders"][0]["git"]["commit"] == "a" * 40
+    assert after["status"]["folders"][0]["skipped"] == STATUS["folders"][0]["skipped"]
+    assert refused.is_error
+    assert "Not permitted for your role" in str(refused.content)
+
+
 def test_ingest_url_asks_first_then_adds_through_the_api(
     client: TestClient, api: list[httpx2.Request]
 ) -> None:
