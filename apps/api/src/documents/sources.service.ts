@@ -13,23 +13,58 @@ import {
 import { isNotNull } from 'drizzle-orm';
 import { load } from 'js-yaml';
 import { z } from 'zod';
-import type { Domain } from '../ai-client/ai-client.service.js';
+import { AiClient, type Domain } from '../ai-client/ai-client.service.js';
 import { DOMAINS, DomainSchema } from '../catalog/taxonomy.js';
 import { CONFIG, type Config } from '../config.js';
 import { DB, type Db } from '../db/db.module.js';
 import { type Document, documents } from '../db/schema.js';
 import { DocumentsService, type Upload } from './documents.service.js';
+import { gitHead } from './git-head.js';
 
+const Skipped = z.object({ source: z.string(), reason: z.string() });
 export const SyncResult = z
   .object({
     added: z.array(z.string()),
     updated: z.array(z.string()),
     deleted: z.array(z.string()),
     unchanged: z.int(),
-    skipped: z.array(z.object({ source: z.string(), reason: z.string() })),
+    skipped: z.array(Skipped),
   })
   .meta({ id: 'SourcesSync' });
 export type SyncResult = z.infer<typeof SyncResult>;
+
+// snake_case like the other API → AI service bodies: pushed to the AI service as it is (D127).
+const Folder = SyncResult.extend({
+  label: z.string(),
+  git: z
+    .object({
+      commit: z.string().nullable(),
+      branch: z.string().nullable(),
+      reason: z.string().optional(),
+      pull: z.enum(['ok', 'failed', 'off']),
+      pull_error: z.string().optional(),
+    })
+    .nullable(),
+  excluded: z.array(z.string()),
+  notes: z.int(),
+  documents: z.object({
+    ready: z.int(),
+    in_progress: z.int(),
+    failed: z.array(z.object({ source: z.string(), error: z.string() })),
+  }),
+});
+type Folder = z.infer<typeof Folder>;
+export const SourcesStatus = z
+  .object({
+    started_at: z.iso.datetime(),
+    finished_at: z.iso.datetime(),
+    interval_minutes: z.number(),
+    error: z.string().optional(),
+    folders: z.array(Folder),
+    urls: z.object({ refreshed: z.array(z.string()), skipped: z.array(Skipped) }),
+  })
+  .meta({ id: 'SourcesStatus' });
+export type SourcesStatus = z.infer<typeof SourcesStatus>;
 
 const NOTES = { sub: 'notes', name: 'Notes folder' };
 // shortcut: notes without frontmatter domains or a domain-named top folder; becomes the catch-all
@@ -67,11 +102,15 @@ export class SourcesService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(SourcesService.name);
   private running?: Promise<SyncResult>;
   private timer?: NodeJS.Timeout;
+  private retry?: NodeJS.Timeout;
+  private runs = 0;
+  private last?: SourcesStatus;
 
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(CONFIG) private readonly config: Config,
     private readonly documents: DocumentsService,
+    private readonly ai: AiClient,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -82,12 +121,19 @@ export class SourcesService implements OnApplicationBootstrap, OnModuleDestroy {
 
   onModuleDestroy(): void {
     clearInterval(this.timer);
+    clearTimeout(this.retry);
   }
 
   /** One sync at a time: a call during a running one gets that one's result. */
   sync(requestId = 'sources-sync'): Promise<SyncResult> {
     this.running ??= this.run(requestId).finally(() => (this.running = undefined));
     return this.running;
+  }
+
+  /** The last run's status with document counts as they are now; null until a run has ended. */
+  async status(requestId: string): Promise<SourcesStatus | null> {
+    if (!this.last) return null;
+    return { ...this.last, folders: await this.counted(this.last.folders, requestId) };
   }
 
   private async tick(): Promise<void> {
@@ -102,11 +148,45 @@ export class SourcesService implements OnApplicationBootstrap, OnModuleDestroy {
     }
   }
 
+  /** Every run ends with a status pushed to the AI service, a failed one too (D127). */
   private async run(requestId: string): Promise<SyncResult> {
-    const result: SyncResult = { added: [], updated: [], deleted: [], unchanged: 0, skipped: [] };
+    const run = ++this.runs;
+    const status: SourcesStatus = {
+      started_at: new Date().toISOString(),
+      finished_at: '',
+      interval_minutes: this.config.SOURCES_SYNC_MINUTES,
+      folders: [],
+      urls: { refreshed: [], skipped: [] },
+    };
+    try {
+      return await this.walk(status, requestId);
+    } catch (error) {
+      status.error = reason(error);
+      throw error;
+    } finally {
+      status.finished_at = new Date().toISOString();
+      this.last = status;
+      void this.push(status, run, requestId);
+    }
+  }
+
+  /** Retried every 30 s until the next run starts: at boot the AI service is often still loading. */
+  private async push(status: SourcesStatus, run: number, requestId: string): Promise<void> {
+    if (run !== this.runs) return;
+    try {
+      await this.ai.putSourcesStatus(status, requestId);
+    } catch (error) {
+      this.logger.warn(`Sources status not reported, retry in 30 s: ${reason(error)}`);
+      this.retry = setTimeout(() => void this.push(status, run, requestId), 30_000).unref();
+    }
+  }
+
+  /** Sets `status.folders` and `status.urls` once all is done; the result is merged from them. */
+  private async walk(status: SourcesStatus, requestId: string): Promise<SyncResult> {
     const rows = await this.db.select().from(documents).where(isNotNull(documents.source));
     const known = new Set(rows.map((doc) => doc.source));
     const put = async (
+      result: SyncResult,
       source: string,
       owner: { sub: string; name: string },
       read: () => Promise<{ file: Upload; domains: Domain[]; topics: string[] }>,
@@ -131,35 +211,96 @@ export class SourcesService implements OnApplicationBootstrap, OnModuleDestroy {
     const exclude = this.config.NOTES_EXCLUDE;
     const included = (source: string) =>
       !exclude.some((x) => source === x || source.startsWith(`${x}/`));
+    const done: Folder[] = [];
     for (const { label, dir } of folders(this.config)) {
       const prefix = `${label}:`;
+      const excluded = exclude
+        .filter((x) => x.startsWith(prefix))
+        .map((x) => x.slice(prefix.length));
+      const folder: Folder = { ...tally(), label, git: null, excluded, notes: 0, documents: NONE };
+      done.push(folder);
       const skip = (error: unknown) =>
-        result.skipped.push({ source: prefix, reason: reason(error) });
-      if (this.config.NOTES_GIT_PULL && existsSync(join(dir, '.git'))) await pull(dir).catch(skip);
+        folder.skipped.push({ source: prefix, reason: reason(error) });
+      let git: Pick<NonNullable<Folder['git']>, 'pull' | 'pull_error'> = { pull: 'off' };
+      if (this.config.NOTES_GIT_PULL && existsSync(join(dir, '.git'))) {
+        git = await pull(dir).then(
+          () => ({ pull: 'ok' }),
+          (error: unknown) => ({ pull: 'failed', pull_error: reason(error) }),
+        );
+      }
+      // After the pull: the commit the notes below are read from.
+      const head = await gitHead(dir);
+      folder.git = head && { ...head, ...git };
       const found = await notes(dir).catch((error: unknown) => void skip(error));
       if (!found) continue;
       const paths = found.filter((path) => included(prefix + path));
-      for (const path of paths) await put(prefix + path, NOTES, () => note(dir, prefix, path));
+      folder.notes = paths.length;
+      for (const path of paths) {
+        await put(folder, prefix + path, NOTES, () => note(dir, prefix, path));
+      }
       const seen = new Set(paths.map((path) => prefix + path));
       const gone = rows.filter((doc) => doc.source!.startsWith(prefix) && !seen.has(doc.source!));
       if (!paths.length && gone.length) {
         // An unmounted or emptied folder must not wipe the knowledge base.
         skip(`${dir} has no notes; its ${gone.length} indexed ones stay`);
       } else {
-        for (const doc of gone) await this.remove(doc, requestId, result);
+        for (const doc of gone) await this.remove(doc, requestId, folder);
       }
     }
 
-    const due = Date.now() - URL_REFRESH_MS;
-    for (const doc of rows.filter((row) => /^https?:\/\//.test(row.source!))) {
-      if (doc.updatedAt.getTime() > due) continue;
-      await put(doc.source!, { sub: doc.ownerId, name: doc.ownerName }, async () => ({
+    const urls = tally();
+    const cutoff = Date.now() - URL_REFRESH_MS;
+    const due = rows.filter(
+      (row) => /^https?:\/\//.test(row.source!) && row.updatedAt.getTime() <= cutoff,
+    );
+    for (const doc of due) {
+      await put(urls, doc.source!, { sub: doc.ownerId, name: doc.ownerName }, async () => ({
         file: await this.documents.fetch(doc.source!),
         domains: doc.domains as Domain[],
         topics: doc.topics,
       }));
     }
-    return result;
+
+    status.folders = await this.counted(done, requestId);
+    const failed = new Set(urls.skipped.map((s) => s.source));
+    status.urls = {
+      refreshed: due.map((doc) => doc.source!).filter((source) => !failed.has(source)),
+      skipped: urls.skipped,
+    };
+    // SyncResult lists a failed pull as skipped, as before D127.
+    const parts: SyncResult[] = done.map(({ label, git, ...folder }) => ({
+      ...folder,
+      skipped: [
+        ...(git?.pull_error ? [{ source: `${label}:`, reason: git.pull_error }] : []),
+        ...folder.skipped,
+      ],
+    }));
+    parts.push(urls);
+    return {
+      added: parts.flatMap((p) => p.added),
+      updated: parts.flatMap((p) => p.updated),
+      deleted: parts.flatMap((p) => p.deleted),
+      unchanged: parts.reduce((sum, p) => sum + p.unchanged, 0),
+      skipped: parts.flatMap((p) => p.skipped),
+    };
+  }
+
+  /** Each folder's documents as they are now, by source prefix. */
+  private async counted(folders: Folder[], requestId: string): Promise<Folder[]> {
+    const docs = await this.documents.list(requestId);
+    return folders.map((folder) => {
+      const own = docs.filter((doc) => doc.source?.startsWith(`${folder.label}:`));
+      const failed = own.filter((doc) => doc.status === 'failed');
+      const ready = own.filter((doc) => doc.status === 'ready').length;
+      return {
+        ...folder,
+        documents: {
+          ready,
+          in_progress: own.length - ready - failed.length,
+          failed: failed.map((doc) => ({ source: doc.source!, error: doc.error ?? '' })),
+        },
+      };
+    });
   }
 
   private async remove(doc: Document, requestId: string, result: SyncResult): Promise<void> {
@@ -173,6 +314,14 @@ export class SourcesService implements OnApplicationBootstrap, OnModuleDestroy {
 }
 
 const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
+const tally = (): SyncResult => ({
+  added: [],
+  updated: [],
+  deleted: [],
+  unchanged: 0,
+  skipped: [],
+});
+const NONE: Folder['documents'] = { ready: 0, in_progress: 0, failed: [] };
 
 function folders({ NOTES_DIR, NOTES_SOURCES }: Config): { label: string; dir: string }[] {
   if (!NOTES_SOURCES.length) return NOTES_DIR ? [{ label: 'notes', dir: NOTES_DIR }] : [];

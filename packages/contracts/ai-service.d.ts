@@ -288,6 +288,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sources/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Report Status
+         * @description The API pushes the status after every sync; the MCP tool `index_status` returns it.
+         */
+        put: operations["report_status_v1_sources_status_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -440,6 +460,59 @@ export interface components {
              */
             boost?: number;
         };
+        /** Failed */
+        Failed: {
+            /** Source */
+            source: string;
+            /** Error */
+            error: string;
+        };
+        /** FolderDocuments */
+        FolderDocuments: {
+            /** Ready */
+            ready: number;
+            /** In Progress */
+            in_progress: number;
+            /** Failed */
+            failed: components["schemas"]["Failed"][];
+        };
+        /** FolderGit */
+        FolderGit: {
+            /** Commit */
+            commit: string | null;
+            /** Branch */
+            branch: string | null;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Pull
+             * @enum {string}
+             */
+            pull: "ok" | "failed" | "off";
+            /** Pull Error */
+            pull_error?: string | null;
+        };
+        /** FolderStatus */
+        FolderStatus: {
+            /** Label */
+            label: string;
+            git: components["schemas"]["FolderGit"] | null;
+            /** Excluded */
+            excluded: string[];
+            /** Notes */
+            notes: number;
+            /** Added */
+            added: string[];
+            /** Updated */
+            updated: string[];
+            /** Deleted */
+            deleted: string[];
+            /** Unchanged */
+            unchanged: number;
+            /** Skipped */
+            skipped: components["schemas"]["Skipped-Input"][];
+            documents: components["schemas"]["FolderDocuments"];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -543,7 +616,7 @@ export interface components {
             /** Chunks */
             chunks: number;
             /** Skipped */
-            skipped: components["schemas"]["Skipped"][];
+            skipped: components["schemas"]["Skipped-Output"][];
             /** Metrics */
             metrics: {
                 [key: string]: {
@@ -688,7 +761,14 @@ export interface components {
             qdrant: "ok" | "down";
         };
         /** Skipped */
-        Skipped: {
+        "Skipped-Input": {
+            /** Source */
+            source: string;
+            /** Reason */
+            reason: string;
+        };
+        /** Skipped */
+        "Skipped-Output": {
             /**
              * Doc Id
              * Format: uuid
@@ -698,6 +778,29 @@ export interface components {
             filename: string;
             /** Reason */
             reason: string;
+        };
+        /**
+         * SourcesStatus
+         * @description The API's last notes and URL sync (D127).
+         */
+        SourcesStatus: {
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /**
+             * Finished At
+             * Format: date-time
+             */
+            finished_at: string;
+            /** Interval Minutes */
+            interval_minutes: number;
+            /** Error */
+            error?: string | null;
+            /** Folders */
+            folders: components["schemas"]["FolderStatus"][];
+            urls: components["schemas"]["UrlsStatus"];
         };
         /** Submitted */
         Submitted: {
@@ -743,6 +846,13 @@ export interface components {
             domains: ("db" | "dev" | "cloud" | "devops" | "mlops" | "ai" | "security" | "architecture" | "sre")[];
             /** Available */
             available: boolean;
+        };
+        /** UrlsStatus */
+        UrlsStatus: {
+            /** Refreshed */
+            refreshed: string[];
+            /** Skipped */
+            skipped: components["schemas"]["Skipped-Input"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -1349,6 +1459,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Alias"];
+                };
+            };
+        };
+    };
+    report_status_v1_sources_status_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourcesStatus"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

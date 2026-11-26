@@ -11,7 +11,7 @@ from qdrant_client import QdrantClient
 
 from ai_service import __version__
 from ai_service.agent import Agent
-from ai_service.api import agent, catalog, chat, documents, health, jobs
+from ai_service.api import agent, catalog, chat, documents, health, jobs, sources
 from ai_service.catalog import McpServers, load_models, load_servers, load_taxonomy
 from ai_service.contextual import Contextualizer
 from ai_service.core.auth import Caller, ServiceAuth
@@ -42,7 +42,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     setup_logging()
     setup_tracing(settings)
     tokens = Tokens(settings)
-    mcp = create_mcp(settings, lambda: app.state.kb, tokens, lambda: app.state.query)
+    mcp = create_mcp(
+        settings, lambda: app.state.kb, tokens, lambda: app.state.query, lambda: app.state.sources
+    )
     mcp_app = mcp.streamable_http_app(stateless_http=True, json_response=True)
     kb_client = McpClient(settings.mcp_resource_url)
     servers = McpServers(load_servers(settings.mcp_servers_config))
@@ -103,6 +105,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     await worker
 
     app = FastAPI(title="Grove AI service", version=__version__, lifespan=lifespan)
+    app.state.sources = sources.unreported()
     app.include_router(health.router)
     # Every /v1 router is included with this dependency: service token required.
     service_auth = [Depends(ServiceAuth(settings))]
@@ -113,6 +116,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(catalog.router, dependencies=service_auth)
     app.include_router(jobs.router, dependencies=service_auth)
     app.include_router(jobs.admin, dependencies=service_auth)
+    app.include_router(sources.router, dependencies=service_auth)
 
     @app.middleware("http")
     async def propagate_request_id(  # pyright: ignore[reportUnusedFunction]

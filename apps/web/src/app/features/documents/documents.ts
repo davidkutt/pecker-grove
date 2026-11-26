@@ -19,6 +19,7 @@ import { DomainPicker } from '../../shared/domain-picker';
 type Document = components['schemas']['Document'];
 type Taxonomy = components['schemas']['Taxonomy'];
 type SourcesSync = components['schemas']['SourcesSync'];
+type SourcesStatus = components['schemas']['SourcesStatus'];
 
 /** Upload, list and delete documents; the controls follow the roles, the API enforces them (D6). */
 @Component({
@@ -52,6 +53,10 @@ export class Documents {
   protected readonly uploading = signal(false);
   protected readonly syncing = signal(false);
   protected readonly synced = signal<SourcesSync | undefined>(undefined);
+  /** What the last sync read per notes folder, document counts as they are now (D127). */
+  protected readonly sources = httpResource<SourcesStatus | null>(() =>
+    this.isAdmin ? `${this.api}/api/admin/sources/status` : undefined,
+  );
   protected readonly dragging = signal(false);
   protected readonly badge: Record<Document['status'], string> = {
     pending: 'text-bg-secondary',
@@ -112,6 +117,7 @@ export class Documents {
     }
     this.syncing.set(false);
     this.docs.reload();
+    this.sources.reload();
   }
 
   protected async remove(doc: Document): Promise<void> {

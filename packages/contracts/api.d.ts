@@ -164,6 +164,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/sources/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SourcesController_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/models": {
         parameters: {
             query?: never;
@@ -470,6 +486,50 @@ export interface components {
                 source: string;
                 reason: string;
             }[];
+        };
+        SourcesStatus: {
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at: string;
+            interval_minutes: number;
+            error?: string;
+            folders: {
+                added: string[];
+                updated: string[];
+                deleted: string[];
+                unchanged: number;
+                skipped: {
+                    source: string;
+                    reason: string;
+                }[];
+                label: string;
+                git: {
+                    commit: string | null;
+                    branch: string | null;
+                    reason?: string;
+                    /** @enum {string} */
+                    pull: "ok" | "failed" | "off";
+                    pull_error?: string;
+                } | null;
+                excluded: string[];
+                notes: number;
+                documents: {
+                    ready: number;
+                    in_progress: number;
+                    failed: {
+                        source: string;
+                        error: string;
+                    }[];
+                };
+            }[];
+            urls: {
+                refreshed: string[];
+                skipped: {
+                    source: string;
+                    reason: string;
+                }[];
+            };
         };
         Taxonomy: {
             version: number;
@@ -903,6 +963,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SourcesSync"];
+                };
+            };
+        };
+    };
+    SourcesController_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourcesStatus"] | null;
                 };
             };
         };

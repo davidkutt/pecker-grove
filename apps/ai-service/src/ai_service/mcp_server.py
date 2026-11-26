@@ -15,6 +15,7 @@ from mcp.server.mcpserver import Elicit, MCPServer, Resolve
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import AnyHttpUrl, BaseModel, Field, HttpUrl
 
+from ai_service.api.sources import IndexStatus
 from ai_service.core.auth import Caller, Jwt
 from ai_service.core.settings import Settings
 from ai_service.knowledge_base import DocumentInfo, DocumentSection, Domain, Hit, KnowledgeBase
@@ -98,6 +99,7 @@ def create_mcp(
     kb: Callable[[], KnowledgeBase],
     tokens: Tokens,
     transformer: Callable[[], QueryTransformer],
+    index: Callable[[], IndexStatus],
 ) -> MCPServer:
     """`kb` and `transformer` are getters: they only exist once the app's lifespan has started."""
     mcp = MCPServer(
@@ -165,6 +167,14 @@ def create_mcp(
         """Every document in the knowledge base, e.g. the ADRs with `domains: ["architecture"]`."""
         _claims("viewer")
         return Sources(sources=await asyncio.to_thread(kb().documents, domains))
+
+    @mcp.tool()
+    async def index_status() -> IndexStatus:  # pyright: ignore[reportUnusedFunction]
+        """What the knowledge base has indexed from each notes folder: the commit and branch it
+        read, the last sync, skipped notes with reasons, failed documents. Use it before concluding
+        that the knowledge base has nothing on a topic."""
+        _claims("viewer")
+        return index()
 
     @mcp.resource("kb://documents/{doc_id}", mime_type="application/json")
     async def document(doc_id: UUID) -> str:  # pyright: ignore[reportUnusedFunction]

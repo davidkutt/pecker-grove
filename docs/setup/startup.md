@@ -186,7 +186,7 @@ MCP_TOKEN=$(curl -s -d grant_type=$X -d client_id=kb-ai -d client_secret=dev-onl
   http://localhost:8080/realms/kb/protocol/openid-connect/token | sed -E 's/.*"access_token":"([^"]+)".*/\1/')
 curl -s localhost:8000/mcp -H "Authorization: Bearer $MCP_TOKEN" -H 'content-type: application/json' \
   -H 'accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
-  # search_knowledge_base, get_document, list_sources, ingest_url. MCP Inspector v2 (npx @modelcontextprotocol/inspector;
+  # search_knowledge_base, get_document, list_sources, index_status, ingest_url. MCP Inspector v2 (npx @modelcontextprotocol/inspector;
   # v1 0.17.x crashes on Node 24): Add Servers → Add manually, Streamable HTTP, URL http://localhost:8000/mcp;
   # then the server's Settings → Custom Headers: Authorization = Bearer $MCP_TOKEN (valid 5 min — mint it right before)
 curl -s -o /dev/null -w '%{http_code}\n' -X DELETE localhost:8000/v1/documents/$DOC -H "Authorization: Bearer $TOKEN"  # 204
@@ -230,6 +230,12 @@ Set `NOTES_DIR` in `.env` to the absolute path of a Markdown folder, then restar
   `INGEST_URL_ALLOWED_HOSTS`.
 - Every new or changed document runs contextual retrieval when its domain is in `CONTEXTUAL_DOMAINS`
   (≈ 0.002 USD each; 1,000 notes ≈ 2 USD once).
+- What the last sync read and indexed shows on the documents page, for admins, one line per folder:
+  `ressources · a1b2c3d (main) · pull ok · synced 14:20 · 1 skipped · 0 failed`. Expand a line for the skipped
+  notes, the failed documents and a failed pull's error. MCP clients get the same from `index_status`, with
+  the documents still in progress (`GET /api/admin/sources/status` for scripts). The API pushes the status to
+  the AI service after every sync; after an AI-service restart `index_status` answers "no sync reported" until
+  the next sync (at most `SOURCES_SYNC_MINUTES`; with `0`, press *Sync notes and URLs*).
 
 To try it without your own notes, point `NOTES_DIR` at `data/sample-notes/` in this repo (seven short notes
 that cover frontmatter, a domain-named folder and the `dev` default).
@@ -256,8 +262,9 @@ NOTES_GIT_PULL=true                         # Mode A only
   sync (moving a note into `unverified/` takes it out, moving it back adds it again).
 - `NOTES_GIT_PULL=true` runs `git pull --ff-only` in each folder that has its own `.git`, before that folder
   syncs, with your git credentials, without prompts or repository hooks and with a 60-second limit. A failed
-  pull is listed under skipped as `<label>:` and the folder syncs from what is on disk. Mode B ignores it:
-  the mount is read-only and the image has no git.
+  pull is listed under skipped as `<label>:`, the status shows `pull failed` with the error, and the folder
+  syncs from what is on disk. Mode B ignores it: the mount is read-only and the image has no git, so the
+  status shows `pull off`: pull the checkout yourself. Without `NOTES_GIT_PULL` it is `pull off` in Mode A too.
 
 #### Switching the notes folder
 
@@ -318,7 +325,8 @@ and fish):
 pi mcp login kb
 ```
 
-External clients get the read tools (`search_knowledge_base`, `get_document`, `list_sources`) with your roles.
+External clients get the read tools (`search_knowledge_base`, `get_document`, `list_sources`, `index_status`)
+with your roles.
 The server advertises only `kb:read`, so `ingest_url` fails with `insufficient_scope: needs kb:write` — add
 documents in the app. Tokens live 5 minutes and the client refreshes them. Claude Code and Pi ask for
 `offline_access`, so they stay logged in until the login goes unused for 30 days (Keycloak's default). A client without

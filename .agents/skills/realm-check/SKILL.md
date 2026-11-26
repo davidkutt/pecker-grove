@@ -1,6 +1,6 @@
 ---
 name: realm-check
-description: Checks a change to infra/keycloak/realm-kb.json on a throwaway Keycloak (container grove-m24-kc on :8081) — token-exchange matrix of ADR-0009, CIMD logins of Claude Code / VS Code / Pi (ADR-0014), and optionally the API and AI service on :3001/:8001 against it — without resetting the user's stack or touching their running `pnpm dev`. Use when editing the realm, client scopes, client policies, token exchange, service accounts or MCP audiences ("does the realm import work", "check the token matrix", "verify kb-ai / kb-api exchange", "does Claude Code's login still work").
+description: Checks a change to infra/keycloak/realm-kb.json on a throwaway Keycloak on :8081 (container grove-m24-kc, or the plain distribution where Docker is missing) — token claims, token-exchange matrix of ADR-0009, CIMD logins of Claude Code / VS Code / Pi (ADR-0014), and optionally the API and AI service on :3001/:8001 against it — without resetting the user's stack or touching their running `pnpm dev`. Use when editing the realm, client scopes, client policies, token exchange, service accounts or MCP audiences ("does the realm import work", "check the token matrix", "verify kb-ai / kb-api exchange", "does Claude Code's login still work").
 ---
 
 # Realm change on a throwaway Keycloak
@@ -17,6 +17,16 @@ This recipe never touches it. Scratch files go to the session scratchpad (`$S`).
      -v "$PWD/infra/keycloak/realm-kb.json:/opt/keycloak/data/import/realm-kb.json:ro" \
      quay.io/keycloak/keycloak:26.8.2-2 start-dev --import-realm --features=cimd,resource-indicators
    until curl -sf localhost:8081/realms/kb/.well-known/openid-configuration >/dev/null; do sleep 2; done
+   ```
+
+   No Docker daemon (cloud sessions): the same version's distribution needs only Java 21 (≈ 170 MB, ≈ 20 s):
+
+   ```bash
+   curl -sSfL -o $S/kc.tar.gz https://github.com/keycloak/keycloak/releases/download/26.8.2/keycloak-26.8.2.tar.gz
+   tar xzf $S/kc.tar.gz -C $S && mkdir -p $S/keycloak-26.8.2/data/import
+   cp infra/keycloak/realm-kb.json $S/keycloak-26.8.2/data/import/   # wipe $S/keycloak-26.8.2/data/h2 to re-import
+   KC_BOOTSTRAP_ADMIN_USERNAME=admin KC_BOOTSTRAP_ADMIN_PASSWORD=admin $S/keycloak-26.8.2/bin/kc.sh start-dev \
+     --import-realm --features=cimd,resource-indicators --http-port=8081 > $S/kc.log 2>&1   # background
    ```
 
 2. Token matrix: `.agents/skills/realm-check/matrix.sh`. Expect: user token `aud=kb-api` with `sub`,
@@ -53,7 +63,7 @@ This recipe never touches it. Scratch files go to the session scratchpad (`$S`).
    `localhost:3001/api/*` as in the `user-token` skill (upload, conversation turn); the span tree via
    `agent-turn-check`'s `spans.py <traceId>`.
 4. Clean up: kill the :8001/:3001 processes (`lsof -nP -iTCP:8001 -iTCP:3001 -sTCP:LISTEN -t`), then
-   `docker rm -f grove-m24-kc`.
+   `docker rm -f grove-m24-kc` (without Docker: kill the `kc.sh` process).
 
 ## Pitfalls
 
@@ -75,5 +85,9 @@ This recipe never touches it. Scratch files go to the session scratchpad (`$S`).
 - Clients created by CIMD get *full scope* off (realm roles only via the scope mapping on `kb:read`), a consent
   screen, and only realm-default scopes. A `pkce-enforcer` inside the CIMD profile never runs on them, and one
   without `auto-configure` throws an NPE; PKCE comes from the public-client policy.
+- The API's service-account token (client credentials, `kb-api`) and a user token exchanged by `kb-api` share
+  `aud=kb-ai` and `azp=kb-api`. Only `preferred_username` (`service-account-kb-api`) and the missing `sid` /
+  `auth_time` tell the service token apart; there is no `client_id` claim (the realm has no `service_account`
+  scope). The AI service's `require_api_service` relies on `preferred_username` (D127).
 - `pnpm dev` hot-reloads changed code against the user's real Keycloak: after a realm-dependent change their
   running apps may fail until they reset — tell them.
